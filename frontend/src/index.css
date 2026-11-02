@@ -1,0 +1,104 @@
+@import "tailwindcss";
+@import "./theme/tokens.css";
+
+/* Map design tokens into Tailwind utilities (bg-surface, text-muted, border-border-2, ...). */
+@theme inline {
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-bg: var(--ll-bg);
+  --color-surface: var(--ll-surface);
+  --color-surface-2: var(--ll-surface-2);
+  --color-border: var(--ll-border);
+  --color-border-2: var(--ll-border-2);
+  --color-text: var(--ll-text);
+  --color-muted: var(--ll-muted);
+  --color-accent: var(--ll-accent);
+  --color-accent-hover: var(--ll-accent-hover);
+  --color-accent-weak: var(--ll-accent-weak);
+  --color-on-accent: var(--ll-on-accent);
+  --color-link: var(--ll-link);
+  --color-link-hover: var(--ll-link-hover);
+  --color-focus: var(--ll-focus);
+
+  --color-match-fg: var(--ll-match-fg);
+  --color-match-bg: var(--ll-match-bg);
+  --color-match-bd: var(--ll-match-bd);
+  --color-partial-fg: var(--ll-partial-fg);
+  --color-partial-bg: var(--ll-partial-bg);
+  --color-partial-bd: var(--ll-partial-bd);
+  --color-cannot-fg: var(--ll-cannot-fg);
+  --color-cannot-bg: var(--ll-cannot-bg);
+  --color-cannot-bd: var(--ll-cannot-bd);
+  --color-mismatch-fg: var(--ll-mismatch-fg);
+  --color-mismatch-bg: var(--ll-mismatch-bg);
+  --color-missing-fg: var(--ll-missing-fg);
+  --color-missing-bg: var(--ll-missing-bg);
+
+  --color-shade-1: var(--ll-shade-1);
+  --color-shade-2: var(--ll-shade-2);
+  --color-shade-3: var(--ll-shade-3);
+  --color-shade-4: var(--ll-shade-4);
+  --color-photo: var(--ll-photo);
+}
+
+/* Non-colour tokens */
+@theme {
+  --radius-control: 8px; /* cards, inputs, buttons */
+  --radius-inner: 6px; /* menu items, small chips */
+
+  --spacing-control: 44px; /* minimum touch target */
+
+  --container-shell: 1280px; /* header/footer/app pages */
+  --container-auth: 1080px; /* sign-in / register layout */
+  --container-card: 480px; /* auth form card */
+
+  --text-eyebrow: 13px;
+  --text-eyebrow--letter-spacing: 0.06em;
+  --text-body-sm: 15px;
+  --text-brand: 19px;
+  --text-h1: 28px;
+  --text-h1--line-height: 1.5;
+  --text-page: 32px;
+  --text-page--line-height: 1.2;
+}
+
+@layer base {
+  html {
+    background: var(--ll-bg);
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ll-text);
+    background: var(--ll-bg);
+  }
+  a {
+    color: var(--ll-link);
+    text-decoration: underline;
+  }
+  a:hover {
+    color: var(--ll-link-hover);
+  }
+  :where(a, button, input, textarea, select, summary):focus-visible {
+    outline: 3px solid var(--ll-focus);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

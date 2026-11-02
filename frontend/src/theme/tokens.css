@@ -1,0 +1,81 @@
+/* Design tokens (light + dark), mapped to Tailwind in index.css. Status colours (match, partial,
+   cannot, mismatch, missing) must always be paired with an icon and text. */
+
+:root {
+  --ll-bg: #f6f8f7;
+  --ll-surface: #ffffff;
+  --ll-surface-2: #eef2f1;
+  --ll-border: #d5dddb;
+  --ll-border-2: #a9b7b4;
+  --ll-text: #14201e;
+  --ll-muted: #4a5755;
+  --ll-accent: #0d5c57;
+  --ll-accent-hover: #0a4a46;
+  --ll-accent-weak: #e1efec;
+  --ll-on-accent: #ffffff;
+  --ll-link: #0d5c57;
+  --ll-link-hover: #083f3b;
+  --ll-focus: #0a4a46;
+
+  --ll-match-fg: #0a4f4a;
+  --ll-match-bg: #e0f0ec;
+  --ll-match-bd: #7db5ac;
+  --ll-partial-fg: #6a4200;
+  --ll-partial-bg: #fbefd8;
+  --ll-partial-bd: #d6a24a;
+  --ll-cannot-fg: #33465b;
+  --ll-cannot-bg: #e6ebf1;
+  --ll-cannot-bd: #97a6b8;
+  --ll-mismatch-fg: #5a3f86;
+  --ll-mismatch-bg: #efeaf7;
+  --ll-missing-fg: #4f5866;
+  --ll-missing-bg: #f3f4f6;
+
+  /* Chart shades (validation page) and label-photo backdrop */
+  --ll-shade-1: #e0f0ec;
+  --ll-shade-2: #a8d3cb;
+  --ll-shade-3: #3f8c82;
+  --ll-shade-4: #0d5c57;
+  --ll-photo: #2b3332;
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --ll-bg: #0e1615;
+  --ll-surface: #141e1d;
+  --ll-surface-2: #1b2726;
+  --ll-border: #2c3b39;
+  --ll-border-2: #46605c;
+  --ll-text: #e5edeb;
+  --ll-muted: #a6b4b1;
+  --ll-accent: #5cc3b7;
+  --ll-accent-hover: #7fd6cb;
+  --ll-accent-weak: #173734;
+  --ll-on-accent: #062420;
+  --ll-link: #7fd6cb;
+  --ll-link-hover: #a9e7df;
+  --ll-focus: #9be3d9;
+
+  --ll-match-fg: #8edbd0;
+  --ll-match-bg: #11312d;
+  --ll-match-bd: #2f6d66;
+  --ll-partial-fg: #f3c978;
+  --ll-partial-bg: #33270f;
+  --ll-partial-bd: #7a5b22;
+  --ll-cannot-fg: #bccada;
+  --ll-cannot-bg: #1d2733;
+  --ll-cannot-bd: #4a5b70;
+  --ll-mismatch-fg: #c9b5f0;
+  --ll-mismatch-bg: #261e36;
+  --ll-missing-fg: #aeb6c2;
+  --ll-missing-bg: #1a2023;
+
+  --ll-shade-1: #16302d;
+  --ll-shade-2: #1f5550;
+  --ll-shade-3: #3c8e85;
+  --ll-shade-4: #7fd6cb;
+  --ll-photo: #0a0f0e;
+
+  color-scheme: dark;
+}

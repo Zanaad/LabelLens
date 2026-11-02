@@ -1,0 +1,37 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/storage/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Validation outputs (commit only curated results)
+validation/results/*
+!validation/results/.gitkeep
+
+# Local-only planning, design and docs
+PLAN.md
+DATA_SOURCES.md
+docs/
+data/README.md
+validation/README.md
+scripts/unpack_design.py
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
