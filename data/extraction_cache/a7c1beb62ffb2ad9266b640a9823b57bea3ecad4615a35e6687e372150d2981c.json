@@ -1,0 +1,21 @@
+{
+  "provider": "hand-written fixture",
+  "model": "claude-opus-5-5",
+  "prompt_version": "2026-11-03.1",
+  "note": "Example label 'Ginkgovita 120' (fictional product). Written by hand to the extraction rules; replace with a real model output once an API key is available.",
+  "output": {
+    "label_readable": true,
+    "is_herbal_product": true,
+    "product_name": "GINKGOVITA 120",
+    "plant": {"value": "Ginkgo biloba", "status": "stated", "confidence": 0.97, "evidence": "Ginkgo biloba leaf extract"},
+    "plant_part": {"value": "leaf", "status": "stated", "confidence": 0.96, "evidence": "Ginkgo biloba leaf extract"},
+    "preparation_type": {"value": "dry extract", "status": "stated", "confidence": 0.95, "evidence": "120 mg dry extract per tablet"},
+    "extract_ratio": {"value": "35–67:1", "status": "stated", "confidence": 0.94, "evidence": "Extract ratio 35–67:1"},
+    "solvent": {"value": "acetone 60% (m/m)", "status": "stated", "confidence": 0.94, "evidence": "Extraction solvent: acetone 60% (m/m)"},
+    "marker": {"value": "22–27% flavonoids (as flavone glycosides) and 5–7% terpene lactones", "status": "stated", "confidence": 0.82, "evidence": "Quantified to 22–27% flavonoids (as flavone glycosides) and 5–7% terpene lactones"},
+    "dose": {"value": "120 mg dry extract per tablet", "status": "stated", "confidence": 0.95, "evidence": "Film-coated tablets · 120 mg dry extract per tablet"},
+    "other_ingredients": {"value": "lactose monohydrate, microcrystalline cellulose, maize starch, hypromellose, magnesium stearate, colour: iron oxide (E172)", "status": "stated", "confidence": 0.85, "evidence": "Other ingredients: lactose monohydrate, microcrystalline cellulose, maize starch, hypromellose, magnesium stearate, colour: iron oxide (E172)."},
+    "batch": {"value": "GB-55102", "status": "stated", "confidence": 0.97, "evidence": "Batch GB-55102"},
+    "expiry": {"value": "11/2027", "status": "stated", "confidence": 0.97, "evidence": "Use by 11/2027"}
+  }
+}

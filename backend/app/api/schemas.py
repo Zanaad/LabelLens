@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models import Role
+from app.extraction.schema import FieldStatus
+from app.models import Role, ScanStatus
 
 
 class UserOut(BaseModel):
@@ -72,3 +73,36 @@ class InvitationAcceptIn(InvitationTokenIn):
     password: str = Field(max_length=1024)
     accept_privacy: bool
     accept_terms: bool
+
+
+class ProfileUpdate(BaseModel):
+    organisation: str | None = Field(default=None, max_length=200)
+    onboarded: bool = False
+
+
+class LabelTextIn(BaseModel):
+    text: str = Field(min_length=10, max_length=5000)
+
+
+class FieldOut(BaseModel):
+    value: str | None
+    status: FieldStatus
+    confidence: float
+    evidence: str | None
+    edited: bool = False
+
+
+class ScanOut(BaseModel):
+    id: uuid.UUID
+    status: ScanStatus
+    created_at: datetime
+    original_filename: str | None
+    has_image: bool
+    label_text: str | None
+    product_name: str | None
+    fields: dict[str, FieldOut]
+
+
+class FieldsUpdate(BaseModel):
+    # Field key -> corrected value; null marks the field as not stated on the label.
+    fields: dict[str, str | None]

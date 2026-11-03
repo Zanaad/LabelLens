@@ -37,10 +37,11 @@ class Settings(BaseSettings):
     storage_dir: str = "./storage"
     max_upload_mb: int = 10
 
-    # Extraction. Keys come only from env.
-    extraction_provider: str = "cached"
-    extraction_model: str = ""
+    # Extraction. Keys come only from env. "cached" replays saved outputs; "claude" calls the API.
+    extraction_provider: Literal["cached", "claude"] = "cached"
+    extraction_model: str = "claude-opus-5-5"
     extraction_api_key: str = Field(default="", repr=False)
+    extraction_cache_dir: str = "../data/extraction_cache"
 
     @field_validator("cors_origins")
     @classmethod

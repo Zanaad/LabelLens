@@ -1,0 +1,169 @@
+import base64
+import hashlib
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Protocol
+
+import anthropic
+from anthropic.types.beta import BetaContentBlockParam
+
+from app.config import get_settings
+from app.extraction.schema import LabelExtraction
+
+# Bump on every prompt change; it is stored with each extraction and part of the cache key.
+PROMPT_VERSION = "2026-11-03.1"
+
+PROMPT = """You read the label of a herbal product for a pharmacist. Fill in every field of the \
+schema from the label above.
+
+Rules:
+- Copy values exactly as printed, in the label's own language and spelling. Do not translate, \
+convert, expand abbreviations or map common plant names to Latin names.
+- Never infer or guess a value that is not printed. If a field is not on the label, set status \
+"not_stated" and value and evidence to null. Absent information is missing, not a default.
+- If text for a field is present but you cannot read it reliably, set status "unreadable".
+- evidence is the exact label text the value was copied from (a word, line or phrase).
+- confidence is how sure you are the value was read correctly: about 0.9 or higher for clear \
+text, 0.5-0.85 for small, partly hidden or reflective text, below 0.5 if hard to read.
+- label_readable is false only if the image is too blurred, dark or cut off to read at all.
+- is_herbal_product is false for conventional medicines (for example ibuprofen tablets) and \
+for products that contain no plant material.
+
+Fields:
+- plant: the plant named as an ingredient (common or Latin name, as printed)
+- plant_part: the part of the plant used (for example root, leaf, herb, flower)
+- preparation_type: the form of the herbal ingredient (for example dry extract, tincture, \
+powdered herb, tea)
+- extract_ratio: the drug-extract ratio (DER), for example "4-7:1"
+- solvent: the extraction solvent and its strength, for example "ethanol 60% (V/V)"
+- marker: a standardised marker and its content, for example "0.2% hypericin"
+- dose: the amount of herbal ingredient per unit (tablet, capsule, ml), as printed
+- other_ingredients: all other listed ingredients, including colourants
+- batch: the batch or lot number
+- expiry: the expiry or best-before date"""
+
+# Models that accept server-side refusal fallbacks (fallbacks="default").
+FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
+
+
+class ExtractionError(Exception):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+@dataclass
+class ExtractionResult:
+    raw: dict[str, Any]
+    fields: LabelExtraction
+    provider: str
+    model: str
+    cache_key: str
+    latency_ms: int | None
+
+
+class ExtractionProvider(Protocol):
+    name: str
+    model: str
+
+    # image is always JPEG (the model copy made by services.images).
+    def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult: ...
+
+
+def cache_key(data: bytes, model: str) -> str:
+    return hashlib.sha256(data + PROMPT_VERSION.encode() + model.encode()).hexdigest()
+
+
+def _input_bytes(image: bytes | None, text: str | None) -> bytes:
+    if image is not None:
+        return image
+    if text is not None:
+        return text.encode()
+    raise ValueError("image or text is required")
+
+
+class CachedProvider:
+    """Replays saved outputs so tests and validation run without keys or cost."""
+
+    name = "cached"
+
+    def __init__(self, model: str, cache_dir: str | Path):
+        self.model = model
+        self.cache_dir = Path(cache_dir)
+
+    def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
+        key = cache_key(_input_bytes(image, text), self.model)
+        path = self.cache_dir / f"{key}.json"
+        if not path.is_file():
+            raise ExtractionError("not_in_cache")
+        output = json.loads(path.read_text())["output"]
+        fields = LabelExtraction.model_validate(output)
+        return ExtractionResult(output, fields, self.name, self.model, key, None)
+
+
+class ClaudeProvider:
+    name = "claude"
+
+    def __init__(self, model: str, api_key: str, cache_dir: str | Path):
+        self.model = model
+        self.cache_dir = Path(cache_dir)
+        # Empty key falls back to the SDK's own lookup (ANTHROPIC_API_KEY or `ant auth login`).
+        self.client = anthropic.Anthropic(api_key=api_key or None, timeout=120)
+
+    def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
+        key = cache_key(_input_bytes(image, text), self.model)
+        label: BetaContentBlockParam
+        if image is not None:
+            data = base64.standard_b64encode(image).decode()
+            label = {
+                "type": "image",
+                "source": {"type": "base64", "media_type": "image/jpeg", "data": data},
+            }
+        else:
+            label = {"type": "text", "text": f"<label_text>\n{text}\n</label_text>"}
+        extra: dict[str, Any] = {}
+        if self.model in FALLBACK_MODELS:
+            extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
+
+        started = time.monotonic()
+        try:
+            response = self.client.beta.messages.parse(
+                model=self.model,
+                max_tokens=16000,
+                output_config={"effort": "medium"},
+                output_format=LabelExtraction,
+                messages=[{"role": "user", "content": [label, {"type": "text", "text": PROMPT}]}],
+                **extra,
+            )
+        except anthropic.AuthenticationError:
+            raise ExtractionError("provider_misconfigured") from None
+        except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError):
+            raise ExtractionError("provider_unavailable") from None
+        latency_ms = int((time.monotonic() - started) * 1000)
+
+        if response.stop_reason == "refusal" or response.parsed_output is None:
+            raise ExtractionError("extraction_failed")
+        fields = response.parsed_output
+        output = fields.model_dump(mode="json")
+        self._save(key, output)
+        return ExtractionResult(output, fields, self.name, self.model, key, latency_ms)
+
+    def _save(self, key: str, output: dict[str, Any]) -> None:
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        record = {
+            "provider": self.name,
+            "model": self.model,
+            "prompt_version": PROMPT_VERSION,
+            "output": output,
+        }
+        path = self.cache_dir / f"{key}.json"
+        path.write_text(json.dumps(record, indent=2, ensure_ascii=False))
+
+
+def get_extraction_provider() -> ExtractionProvider:
+    s = get_settings()
+    if s.extraction_provider == "claude":
+        return ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
+    return CachedProvider(s.extraction_model, s.extraction_cache_dir)

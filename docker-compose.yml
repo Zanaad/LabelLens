@@ -27,10 +27,12 @@ services:
       AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
       UPLOAD_RATE_LIMIT_PER_MINUTE: ${UPLOAD_RATE_LIMIT_PER_MINUTE:-20}
       EXTRACTION_PROVIDER: ${EXTRACTION_PROVIDER:-cached}
-      EXTRACTION_MODEL: ${EXTRACTION_MODEL:-}
+      EXTRACTION_MODEL: ${EXTRACTION_MODEL:-claude-opus-5-5}
       EXTRACTION_API_KEY: ${EXTRACTION_API_KEY:-}
+      EXTRACTION_CACHE_DIR: /data/extraction_cache
     volumes:
       - uploads:/data/storage
+      - ./data/extraction_cache:/data/extraction_cache
     depends_on:
       db:
         condition: service_healthy
