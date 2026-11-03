@@ -47,7 +47,12 @@ class ReferenceHistory(IdMixin, CreatedMixin, Base):
 
 class PlantName(IdMixin, TimestampMixin, Base):
     __tablename__ = "plant_names"
-    __table_args__ = (UniqueConstraint("name", "language", name="uq_plant_names_name_language"),)
+    # One common name can mean several species ("chamomile"), so the Latin name is in the key.
+    __table_args__ = (
+        UniqueConstraint(
+            "name", "language", "latin_name", name="uq_plant_names_name_language_latin"
+        ),
+    )
 
     name: Mapped[str] = mapped_column(String(200))
     language: Mapped[str] = mapped_column(String(8))  # ISO 639-1: en, sq, la, ...

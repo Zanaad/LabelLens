@@ -2,12 +2,12 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.extraction.schema import FieldStatus
-from app.models import Role, ScanStatus
+from app.models import Role, ScanStatus, VerdictCode
 
 
 class UserOut(BaseModel):
@@ -106,3 +106,16 @@ class ScanOut(BaseModel):
 class FieldsUpdate(BaseModel):
     # Field key -> corrected value; null marks the field as not stated on the label.
     fields: dict[str, str | None]
+
+
+class VerdictOut(BaseModel):
+    # Shapes come from app.rules.engine (Item, Comparison, Reference); the UI words them.
+    id: uuid.UUID
+    created_at: datetime
+    rules_version: str
+    verdict: VerdictCode
+    plant_latin: list[str]
+    reasons: list[dict[str, Any]]
+    comparisons: list[dict[str, Any]]
+    missing: list[dict[str, Any]]
+    sources: list[dict[str, Any]]

@@ -9,6 +9,7 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.cli import ReferenceFile, import_reference
 from app.extraction.providers import (
     PROMPT_VERSION,
     CachedProvider,
@@ -157,6 +158,36 @@ def test_image_scan_is_owner_only_and_delete_removes_image(client: TestClient, d
     assert client.delete(f"/api/scans/{scan['id']}").status_code == 204
     assert not storage.exists(image_path)
     assert client.get(f"/api/scans/{scan['id']}").status_code == 404
+
+
+def test_verdict_is_stored_owner_only_and_needs_a_herbal_product(
+    client: TestClient, db: Session, setup
+):
+    cache_dir, _ = setup
+    sample = Path(__file__).parents[2] / "data" / "reference" / "sample.json"
+    import_reference(db, ReferenceFile.model_validate_json(sample.read_bytes()))
+    cache(cache_dir, LABEL.encode(), extraction())
+    scan = client.post("/api/scans/text", json={"text": LABEL}).json()
+    assert client.get(f"/api/scans/{scan['id']}/verdict").status_code == 404
+
+    r = client.post(f"/api/scans/{scan['id']}/verdict")
+    assert r.status_code == 201, r.text
+    verdict = r.json()
+    assert verdict["verdict"] == "cannot_say"
+    assert verdict["plant_latin"] == ["Hypericum perforatum L."]
+    assert len(verdict["comparisons"]) == 3 and verdict["sources"][0]["verified"] is False
+    assert client.get(f"/api/scans/{scan['id']}/verdict").json()["id"] == verdict["id"]
+    assert client.get(f"/api/scans/{scan['id']}").json()["status"] == "checked"
+
+    other = "Ibuprofen 400 mg film-coated tablets"
+    cache(cache_dir, other.encode(), extraction(herbal=False))
+    out = client.post("/api/scans/text", json={"text": other}).json()
+    assert client.post(f"/api/scans/{out['id']}/verdict").status_code == 409
+
+    client.post("/api/auth/logout")
+    make_user(db, "other@example.org", Role.pharmacist)
+    login(client, "other@example.org")
+    assert client.post(f"/api/scans/{scan['id']}/verdict").status_code == 404
 
 
 def test_only_pharmacists_can_scan(client: TestClient, db: Session, setup):

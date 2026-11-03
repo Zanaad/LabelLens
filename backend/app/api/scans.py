@@ -1,14 +1,15 @@
+import dataclasses
 import hashlib
 import uuid
 from pathlib import PurePath
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
-from app.api.schemas import FieldOut, FieldsUpdate, LabelTextIn, ScanOut
+from app.api.schemas import FieldOut, FieldsUpdate, LabelTextIn, ScanOut, VerdictOut
 from app.config import get_settings
 from app.db import get_db
 from app.extraction.providers import (
@@ -18,7 +19,19 @@ from app.extraction.providers import (
     get_extraction_provider,
 )
 from app.extraction.schema import FIELD_KEYS, FieldStatus
-from app.models import Correction, Extraction, Role, Scan, ScanStatus, User
+from app.models import (
+    Correction,
+    Extraction,
+    PlantName,
+    ReferencePreparation,
+    Role,
+    Scan,
+    ScanStatus,
+    User,
+    Verdict,
+    VerdictCode,
+)
+from app.rules import engine
 from app.services.audit import audit
 from app.services.images import CleanImage, ImageError, clean_upload
 from app.services.rate_limit import rate_limit
@@ -207,6 +220,83 @@ def update_fields(
     audit(db, "scan.correct", user_id=user.id, entity_type="scan", entity_id=scan.id)
     db.commit()
     return _scan_out(scan, extraction)
+
+
+REFERENCE_FIELDS = [f.name for f in dataclasses.fields(engine.Reference) if f.name != "id"]
+
+
+def _verdict_out(v: Verdict) -> VerdictOut:
+    return VerdictOut(
+        id=v.id,
+        created_at=v.created_at,
+        rules_version=v.rules_version,
+        verdict=v.verdict,
+        plant_latin=v.reasoning_json["plant_latin"],
+        reasons=v.reasoning_json["reasons"],
+        comparisons=v.comparison_json["comparisons"],
+        missing=v.missing_json["items"],
+        sources=v.sources_json["sources"],
+    )
+
+
+@router.post("/{scan_id}/verdict", response_model=VerdictOut, status_code=201)
+def check_scan(
+    scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> VerdictOut:
+    scan = _own_scan(db, scan_id, user)
+    extraction = _latest_extraction(db, scan.id)
+    if extraction is None or scan.status == ScanStatus.out_of_scope:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="not_checkable")
+
+    # Only values printed on the label (or added by the pharmacist) take part.
+    stated = {
+        k: f.get("value") if f.get("status") == FieldStatus.stated else None
+        for k in FIELD_KEYS
+        if (f := extraction.fields_json.get(k))
+    }
+    names = [(n, latin) for n, latin in db.execute(select(PlantName.name, PlantName.latin_name))]
+    latin = engine.resolve_plant(stated.get("plant") or "", names)
+    query = select(ReferencePreparation).where(
+        func.lower(ReferencePreparation.herb_latin).in_([n.lower() for n in latin])
+    )
+    rows: list[ReferencePreparation] = list(db.scalars(query)) if latin else []
+    refs = [
+        engine.Reference(id=str(r.id), **{k: getattr(r, k) for k in REFERENCE_FIELDS}) for r in rows
+    ]
+    result = engine.evaluate(stated, refs, names).to_json()
+
+    verdict = Verdict(
+        scan_id=scan.id,
+        extraction_id=extraction.id,
+        rules_version=result["rules_version"],
+        verdict=VerdictCode(result["verdict"]),
+        reasoning_json={"reasons": result["reasons"], "plant_latin": result["plant_latin"]},
+        comparison_json={"comparisons": result["comparisons"]},
+        missing_json={"items": result["missing"]},
+        sources_json={"sources": result["sources"]},
+    )
+    db.add(verdict)
+    scan.status = ScanStatus.checked
+    audit(db, "scan.check", user_id=user.id, entity_type="scan", entity_id=scan.id)
+    db.commit()
+    return _verdict_out(verdict)
+
+
+@router.get("/{scan_id}/verdict", response_model=VerdictOut)
+def get_verdict(
+    scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> VerdictOut:
+    scan = _own_scan(db, scan_id, user)
+    query = (
+        select(Verdict)
+        .where(Verdict.scan_id == scan.id)
+        .order_by(Verdict.created_at.desc())
+        .limit(1)
+    )
+    verdict = db.scalar(query)
+    if verdict is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_verdict")
+    return _verdict_out(verdict)
 
 
 @router.delete("/{scan_id}", status_code=204)
