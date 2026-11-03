@@ -34,7 +34,48 @@ export type Scan = {
   fields: Partial<Record<FieldKey, ExtractedField>>;
 };
 
+export type VerdictCode = "matches" | "partly_matches" | "cannot_say" | "not_covered" | "differs";
+export type RowStatus = "match" | "partial" | "mismatch" | "missing" | "na";
+
+// Reasons and missing items arrive as codes; the UI words them from en.ts.
+export type ResultItem = {
+  code: string;
+  params: Record<string, string | number | string[]>;
+  source: string | null;
+  ask: "manufacturer" | "patient" | null;
+};
+
+export type Comparison = {
+  reference_id: string;
+  name: string;
+  evidence_level: string | null;
+  rows: { field: FieldKey; label: string | null; reference: string | null; status: RowStatus }[];
+};
+
+export type Source = {
+  id: string;
+  herb_latin: string;
+  evidence_level: string | null;
+  source_doc: string | null;
+  source_section: string | null;
+  source_url: string | null;
+  verified: boolean;
+};
+
+export type Verdict = {
+  id: string;
+  created_at: string;
+  rules_version: string;
+  verdict: VerdictCode;
+  plant_latin: string[];
+  reasons: ResultItem[];
+  comparisons: Comparison[];
+  missing: ResultItem[];
+  sources: Source[];
+};
+
 const scanKey = (id: string) => ["scans", id] as const;
+const verdictKey = (id: string) => ["scans", id, "verdict"] as const;
 
 export function useCreateScan() {
   const qc = useQueryClient();
@@ -61,5 +102,18 @@ export function useUpdateFields(id: string) {
     mutationFn: (fields: Partial<Record<FieldKey, string | null>>) =>
       api<Scan>(`/api/scans/${id}/fields`, { method: "PATCH", json: { fields } }),
     onSuccess: (scan) => qc.setQueryData(scanKey(id), scan),
+  });
+}
+
+export function useVerdict(id: string) {
+  return useQuery({ queryKey: verdictKey(id), queryFn: () => api<Verdict>(`/api/scans/${id}/verdict`) });
+}
+
+// Compares the reviewed fields with the reference table and stores the verdict.
+export function useCheckScan(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<Verdict>(`/api/scans/${id}/verdict`, { method: "POST" }),
+    onSuccess: (verdict) => qc.setQueryData(verdictKey(id), verdict),
   });
 }

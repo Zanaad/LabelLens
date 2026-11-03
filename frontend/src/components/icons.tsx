@@ -143,6 +143,48 @@ export const NotStatedIcon = (p: P) => (
   </Stroke>
 );
 
+export const MismatchIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 10.2h8M8 13.8h8M14.2 7.4l-4.4 9.2" />
+  </Stroke>
+);
+export const NotApplicableIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M6 18L18 6" />
+  </Stroke>
+);
+export const CopyIcon = (p: P) => (
+  <Stroke {...p}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" />
+  </Stroke>
+);
+export const RestartIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+    <path d="M4.5 4.5v4h4" />
+  </Stroke>
+);
+export const BookIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+    <path d="M4 20.5V5.5" />
+  </Stroke>
+);
+export const ExternalIcon = (p: P) => (
+  <Stroke size={16} {...p}>
+    <path d="M14 4h6v6M20 4l-9 9" />
+    <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  </Stroke>
+);
+export const CloseIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Stroke>
+);
+
 export const UploadIcon = (p: P) => (
   <Stroke {...p}>
     <path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" />

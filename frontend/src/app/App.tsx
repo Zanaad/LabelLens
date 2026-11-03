@@ -5,6 +5,7 @@ import { AdminPage } from "../pages/AdminPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { OnboardingPage } from "../pages/OnboardingPage";
 import { RegisterPage } from "../pages/RegisterPage";
+import { ResultPage } from "../pages/ResultPage";
 import { ReviewPage } from "../pages/ReviewPage";
 import { ScanPage } from "../pages/ScanPage";
 import { SignInPage } from "../pages/SignInPage";
@@ -30,7 +31,7 @@ export function App() {
           <Route path="/scan" element={<ScanPage />} />
           <Route path="/scans" element={<PlaceholderPage title="nav.myScans" />} />
           <Route path="/scans/:id/review" element={<ReviewPage />} />
-          <Route path="/scans/:id/result" element={<PlaceholderPage title="steps.result" />} />
+          <Route path="/scans/:id/result" element={<ResultPage />} />
         </Route>
         <Route element={<RequireRole roles={["expert", "admin"]} />}>
           <Route path="/review" element={<PlaceholderPage title="nav.reviewQueue" />} />
