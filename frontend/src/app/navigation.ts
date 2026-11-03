@@ -1,12 +1,13 @@
 import type { Role } from "../api/auth";
 import type { MessageKey } from "../i18n";
 
-type NavItem = { to: string; label: MessageKey; roles: Role[] };
+// `active` overrides the default prefix match: review and result belong to the Scan flow.
+type NavItem = { to: string; label: MessageKey; roles: Role[]; active?: RegExp };
 
 // Pharmacist nav follows the design; expert and admin navs are our own (not in the design).
 const NAV_ITEMS: NavItem[] = [
-  { to: "/scan", label: "nav.scan", roles: ["pharmacist"] },
-  { to: "/scans", label: "nav.myScans", roles: ["pharmacist"] },
+  { to: "/scan", label: "nav.scan", roles: ["pharmacist"], active: /^\/scan$|^\/scans\/[^/]+\/(review|result)$/ },
+  { to: "/scans", label: "nav.myScans", roles: ["pharmacist"], active: /^\/scans(\/[^/]+)?$/ },
   { to: "/review", label: "nav.reviewQueue", roles: ["expert", "admin"] },
   { to: "/admin", label: "nav.admin", roles: ["admin"] },
   { to: "/reference", label: "nav.reference", roles: ["pharmacist", "expert", "admin"] },

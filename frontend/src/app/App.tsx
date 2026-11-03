@@ -3,7 +3,10 @@ import { AuthLayout } from "../components/AuthLayout";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { AdminPage } from "../pages/AdminPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { OnboardingPage } from "../pages/OnboardingPage";
 import { RegisterPage } from "../pages/RegisterPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { ScanPage } from "../pages/ScanPage";
 import { SignInPage } from "../pages/SignInPage";
 import { NotFoundPage, PlaceholderPage } from "../pages/StatusPages";
 import { HomeRedirect, RedirectIfSignedIn, RequireAuth, RequireRole } from "./guards";
@@ -23,8 +26,11 @@ export function App() {
       {/* Signed in */}
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole roles={["pharmacist"]} />}>
-          <Route path="/scan" element={<PlaceholderPage title="nav.scan" />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/scan" element={<ScanPage />} />
           <Route path="/scans" element={<PlaceholderPage title="nav.myScans" />} />
+          <Route path="/scans/:id/review" element={<ReviewPage />} />
+          <Route path="/scans/:id/result" element={<PlaceholderPage title="steps.result" />} />
         </Route>
         <Route element={<RequireRole roles={["expert", "admin"]} />}>
           <Route path="/review" element={<PlaceholderPage title="nav.reviewQueue" />} />

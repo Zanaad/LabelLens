@@ -112,3 +112,54 @@ describe("routing and auth", () => {
     expect(sentBody(fetchMock, "/api/invitations/inspect")).toEqual({ token });
   });
 });
+
+const stated = (value: string) => ({ value, status: "stated", confidence: 0.95, evidence: value, edited: false });
+const notStated = { value: null, status: "not_stated", confidence: 1, evidence: null, edited: false };
+const scan = {
+  id: "s1",
+  status: "extracted",
+  created_at: "2026-11-03T10:00:00Z",
+  original_filename: null,
+  has_image: false,
+  label_text: "MEADOW CUP\nChamomile tea",
+  product_name: "MEADOW CUP",
+  fields: {
+    plant: stated("chamomile"),
+    plant_part: stated("flowers"),
+    preparation_type: stated("tea"),
+    extract_ratio: notStated,
+    solvent: notStated,
+    marker: notStated,
+    dose: stated("1.5 g"),
+    other_ingredients: notStated,
+    batch: notStated,
+    expiry: stated("08/2027"),
+  },
+};
+
+describe("scan and review", () => {
+  it("reads an example label and links to its review", async () => {
+    const fetchMock = mockApi(pharmacist, (url) => (url === "/api/scans/text" ? { status: 201, body: scan } : undefined));
+    renderApp("/scan");
+    const user = userEvent.setup();
+    const example = await screen.findByRole("button", { name: /Chamomile tea/ });
+    await user.click(example);
+    expect(await screen.findByText("Label read. 5 of 10 fields found, 5 not stated on the label.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review extracted fields/ })).toHaveAttribute("href", "/scans/s1/review");
+    expect(sentBody(fetchMock, "/api/scans/text").text).toContain("MEADOW CUP");
+  });
+
+  it("sends only changed fields when the review is confirmed", async () => {
+    const fetchMock = mockApi(pharmacist, (url) =>
+      url === "/api/scans/s1" || url === "/api/scans/s1/fields" ? { status: 200, body: scan } : undefined,
+    );
+    renderApp("/scans/s1/review");
+    const user = userEvent.setup();
+    await screen.findByText("Extract ratio (DER)");
+    await user.click(screen.getAllByRole("button", { name: "Add value from leaflet" })[0]!);
+    await user.type(screen.getByLabelText("Extract ratio (DER)"), "4-7:1");
+    await user.click(screen.getByRole("button", { name: /Check evidence/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/scans/s1/fields")).toBe(true));
+    expect(sentBody(fetchMock, "/api/scans/s1/fields")).toEqual({ fields: { extract_ratio: "4-7:1" } });
+  });
+});

@@ -42,6 +42,23 @@ docker compose exec backend python -m app.cli create-admin --email you@example.o
 
 Then sign in as that admin, open **Admin**, and create invitation links for reviewers.
 
+## Label reading
+
+By default (`EXTRACTION_PROVIDER=cached`) LabelLens replays saved readings from
+`data/extraction_cache/`, so it runs without an API key or cost. In this mode only the three
+example labels on the Scan page can be read; their saved readings are hand-written fixtures.
+
+To read real labels with Claude, set these in `.env` and restart:
+
+```bash
+EXTRACTION_PROVIDER=claude
+EXTRACTION_MODEL=claude-opus-5-5     # or another Claude model, e.g. claude-sonnet-5-5
+EXTRACTION_API_KEY=                  # your Anthropic API key
+```
+
+Every real reading is saved to `data/extraction_cache/` (keyed by input, prompt version and
+model), so it can be replayed later with the cached provider and used for validation.
+
 ## Local development
 
 Backend (Python 3.11+):

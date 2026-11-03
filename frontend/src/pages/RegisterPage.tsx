@@ -22,8 +22,7 @@ export function RegisterPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    // TODO: go to /onboarding once that screen exists.
-    register.mutate(form, { onSuccess: () => navigate("/scan", { replace: true }) });
+    register.mutate(form, { onSuccess: () => navigate("/onboarding", { replace: true }) });
   }
 
   return (

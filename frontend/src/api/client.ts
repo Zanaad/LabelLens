@@ -1,4 +1,5 @@
 /** Minimal JSON client. Session cookie is httpOnly; the browser sends it automatically. */
+import { en } from "../i18n/en";
 
 export class ApiError extends Error {
   constructor(
@@ -9,21 +10,10 @@ export class ApiError extends Error {
   }
 }
 
-const KNOWN_CODES = new Set([
-  "invalid_credentials",
-  "email_taken",
-  "password_too_short",
-  "consent_required",
-  "invitation_invalid",
-  "too_many_requests",
-  "forbidden",
-  "not_authenticated",
-]);
-
-/** Map an error to an i18n key suffix (error.<code>). */
+/** Map an error to an i18n key suffix (error.<code>); unknown codes fall back to "generic". */
 export function errorCode(err: unknown): string {
   if (err instanceof ApiError) {
-    if (KNOWN_CODES.has(err.code)) return err.code;
+    if (`error.${err.code}` in en) return err.code;
     if (err.status === 429) return "too_many_requests";
     if (err.status === 0) return "network";
   }
@@ -34,6 +24,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   const { json, headers, ...rest } = init;
   let res: Response;
   try {
+    // FormData bodies set their own multipart Content-Type, so only JSON gets one here.
     res = await fetch(path, {
       credentials: "same-origin",
       ...rest,

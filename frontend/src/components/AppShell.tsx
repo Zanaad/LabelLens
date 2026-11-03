@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useLogout, type Role, type User } from "../api/auth";
 import { navFor, ROLE_HOME } from "../app/navigation";
 import { t } from "../i18n";
@@ -76,6 +76,7 @@ function AccountMenu({ user }: { user: User }) {
 
 export function AppShell({ user }: { user: User }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname } = useLocation();
   return (
     <div className="flex min-h-screen flex-col">
       <header className="no-print relative z-20 border-b border-border bg-surface">
@@ -94,22 +95,24 @@ export function AppShell({ user }: { user: User }) {
           <nav
             id="main-nav"
             aria-label={t("nav.main")}
-            className={`${menuOpen ? "flex" : "hidden"} w-full min-w-0 flex-col gap-0.5 md:flex md:w-auto md:flex-1 md:flex-row md:flex-wrap`}
+            className={`${menuOpen ? "flex" : "hidden"} w-full min-w-0 flex-col gap-0.5 md:flex md:w-auto md:flex-auto md:flex-row md:flex-wrap`}
           >
-            {navFor(user.role).map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) =>
-                  `inline-flex min-h-control items-center rounded-control px-3 py-2 text-body-sm no-underline hover:bg-surface-2 hover:text-text ${
-                    isActive ? "bg-accent-weak font-semibold text-text" : "font-medium text-muted"
-                  }`
-                }
-              >
-                {t(item.label)}
-              </NavLink>
-            ))}
+            {navFor(user.role).map((item) => {
+              const active = item.active ? item.active.test(pathname) : pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => setMenuOpen(false)}
+                  className={`inline-flex min-h-control items-center rounded-control px-3 py-2 text-body-sm no-underline hover:bg-surface-2 hover:text-text ${
+                    active ? "bg-accent-weak font-semibold text-text" : "font-medium text-muted"
+                  }`}
+                >
+                  {t(item.label)}
+                </Link>
+              );
+            })}
           </nav>
           <div className="flex flex-wrap items-center gap-2">
             <DisclaimerPill />

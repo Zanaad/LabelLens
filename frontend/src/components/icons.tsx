@@ -115,3 +115,94 @@ export const AlertIcon = (p: P) => (
     <path d="M12 7.5v5.5M12 16.4h.01" />
   </Stroke>
 );
+
+// Verdict icons: always shown next to the verdict text, never colour alone.
+export const MatchIcon = (p: P) => (
+  <Stroke size={22} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 12.5l2.6 2.6L16 9.6" />
+  </Stroke>
+);
+export const PartialIcon = (p: P) => (
+  <Stroke size={22} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" />
+  </Stroke>
+);
+export const CannotSayIcon = (p: P) => (
+  <Stroke size={22} {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.6" />
+    <path d="M12 16.8h.01" />
+  </Stroke>
+);
+export const NotStatedIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <circle cx="12" cy="12" r="9" strokeDasharray="2.6 2.6" />
+    <path d="M8.5 12h7" />
+  </Stroke>
+);
+
+export const UploadIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" />
+    <path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
+  </Stroke>
+);
+export const CameraIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </Stroke>
+);
+export const TextIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M5 6h14M5 10h14M5 14h10M5 18h6" />
+  </Stroke>
+);
+export const WarningIcon = (p: P) => (
+  <Stroke size={24} {...p}>
+    <path d="M12 3.5l9 16H3z" />
+    <path d="M12 10v4.2M12 17h.01" />
+  </Stroke>
+);
+export const ArrowRightIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Stroke>
+);
+export const ArrowLeftIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Stroke>
+);
+export const EditIcon = (p: P) => (
+  <Stroke size={14} {...p}>
+    <path d="M4 20h4L19 9l-4-4L4 16z" />
+  </Stroke>
+);
+
+/** Confidence bars: filled = how many of three bars are solid. */
+export function ConfidenceIcon({ filled }: { filled: 1 | 2 | 3 }) {
+  const bars = [
+    { x: 0, y: 7, h: 5 },
+    { x: 5.5, y: 4, h: 8 },
+    { x: 11, y: 0, h: 12 },
+  ];
+  return (
+    <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true" className="flex-none">
+      {bars.map((b, i) => (
+        <rect
+          key={b.x}
+          x={b.x}
+          y={b.y}
+          width="3"
+          height={b.h}
+          rx="1"
+          fill={i < filled ? "currentColor" : "none"}
+          stroke={i < filled ? "none" : "currentColor"}
+        />
+      ))}
+    </svg>
+  );
+}
