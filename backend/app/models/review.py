@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedMixin, IdMixin, TimestampMixin
@@ -63,6 +63,8 @@ class ValidationRun(IdMixin, CreatedMixin, Base):
 
 class AuditLog(IdMixin, CreatedMixin, Base):
     __tablename__ = "audit_log"
+    # Scan detail reads one entity's activity.
+    __table_args__ = (Index("ix_audit_log_entity", "entity_type", "entity_id"),)
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True

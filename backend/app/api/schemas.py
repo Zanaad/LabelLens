@@ -108,6 +108,71 @@ class FieldsUpdate(BaseModel):
     fields: dict[str, str | None]
 
 
+class ScanListItem(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    status: ScanStatus
+    product_name: str | None
+    plant: str | None
+    verdict: VerdictCode | None  # latest check; None if not checked yet
+    missing: int | None
+
+
+class CorrectionOut(BaseModel):
+    field: str
+    old: str | None
+    new: str | None
+    by: str | None
+    at: datetime
+
+
+class ActivityOut(BaseModel):
+    action: str
+    by: str | None
+    at: datetime
+    details: dict[str, Any] | None
+
+
+class ShareCreate(BaseModel):
+    days: Literal[1, 7, 30] = 7
+
+
+class ShareOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    expires_at: datetime
+    revoked_at: datetime | None
+    last_viewed_at: datetime | None
+
+
+class ShareCreated(ShareOut):
+    # Returned once; only the SHA-256 is stored. The UI builds /p#<token>.
+    token: str
+
+
+class ScanHistory(BaseModel):
+    corrections: list[CorrectionOut]
+    activity: list[ActivityOut]
+    shares: list[ShareOut]
+
+
+class SharedTokenIn(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+
+
+class SharedView(BaseModel):
+    # What a patient sees: no label photo, no fields, no personal data beyond the sharer.
+    product_name: str | None
+    plant: str | None
+    verdict: VerdictCode
+    shared_by: str
+    organisation: str | None
+    shared_at: datetime
+    expires_at: datetime
+
+
 class VerdictOut(BaseModel):
     # Shapes come from app.rules.engine (Item, Comparison, Reference); the UI words them.
     id: uuid.UUID

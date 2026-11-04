@@ -9,7 +9,18 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
-from app.api.schemas import FieldOut, FieldsUpdate, LabelTextIn, ScanOut, VerdictOut
+from app.api.schemas import (
+    ActivityOut,
+    CorrectionOut,
+    FieldOut,
+    FieldsUpdate,
+    LabelTextIn,
+    ScanHistory,
+    ScanListItem,
+    ScanOut,
+    ShareOut,
+    VerdictOut,
+)
 from app.config import get_settings
 from app.db import get_db
 from app.extraction.providers import (
@@ -20,6 +31,7 @@ from app.extraction.providers import (
 )
 from app.extraction.schema import FIELD_KEYS, FieldStatus
 from app.models import (
+    AuditLog,
     Correction,
     Extraction,
     PlantName,
@@ -27,6 +39,7 @@ from app.models import (
     Role,
     Scan,
     ScanStatus,
+    ShareLink,
     User,
     Verdict,
     VerdictCode,
@@ -74,7 +87,7 @@ def _scan_out(scan: Scan, extraction: Extraction | None) -> ScanOut:
     )
 
 
-def _own_scan(db: Session, scan_id: uuid.UUID, user: User) -> Scan:
+def own_scan(db: Session, scan_id: uuid.UUID, user: User) -> Scan:
     scan = db.get(Scan, scan_id)
     # 404 rather than 403, so other users' scan ids are not confirmed.
     if scan is None or scan.user_id != user.id:
@@ -163,7 +176,7 @@ def scan_text(
 def get_scan(
     scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
 ) -> ScanOut:
-    scan = _own_scan(db, scan_id, user)
+    scan = own_scan(db, scan_id, user)
     return _scan_out(scan, _latest_extraction(db, scan.id))
 
 
@@ -174,7 +187,7 @@ def get_scan_image(
     storage: Storage = Depends(get_storage),
     user: User = Depends(pharmacist_only),
 ) -> Response:
-    scan = _own_scan(db, scan_id, user)
+    scan = own_scan(db, scan_id, user)
     if scan.image_path is None or not storage.exists(scan.image_path):
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     return Response(
@@ -191,7 +204,7 @@ def update_fields(
     db: Session = Depends(get_db),
     user: User = Depends(pharmacist_only),
 ) -> ScanOut:
-    scan = _own_scan(db, scan_id, user)
+    scan = own_scan(db, scan_id, user)
     extraction = _latest_extraction(db, scan.id)
     if extraction is None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="no_extraction")
@@ -243,7 +256,7 @@ def _verdict_out(v: Verdict) -> VerdictOut:
 def check_scan(
     scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
 ) -> VerdictOut:
-    scan = _own_scan(db, scan_id, user)
+    scan = own_scan(db, scan_id, user)
     extraction = _latest_extraction(db, scan.id)
     if extraction is None or scan.status == ScanStatus.out_of_scope:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="not_checkable")
@@ -277,26 +290,123 @@ def check_scan(
     )
     db.add(verdict)
     scan.status = ScanStatus.checked
-    audit(db, "scan.check", user_id=user.id, entity_type="scan", entity_id=scan.id)
+    audit(
+        db,
+        "scan.check",
+        user_id=user.id,
+        entity_type="scan",
+        entity_id=scan.id,
+        details={"verdict": verdict.verdict.value},
+    )
     db.commit()
     return _verdict_out(verdict)
+
+
+def latest_verdict(db: Session, scan_id: uuid.UUID) -> Verdict | None:
+    query = (
+        select(Verdict)
+        .where(Verdict.scan_id == scan_id)
+        .order_by(Verdict.created_at.desc())
+        .limit(1)
+    )
+    return db.scalar(query)
 
 
 @router.get("/{scan_id}/verdict", response_model=VerdictOut)
 def get_verdict(
     scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
 ) -> VerdictOut:
-    scan = _own_scan(db, scan_id, user)
-    query = (
-        select(Verdict)
-        .where(Verdict.scan_id == scan.id)
-        .order_by(Verdict.created_at.desc())
-        .limit(1)
-    )
-    verdict = db.scalar(query)
+    verdict = latest_verdict(db, own_scan(db, scan_id, user).id)
     if verdict is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_verdict")
     return _verdict_out(verdict)
+
+
+def _missing_count(missing_json: dict[str, Any]) -> int:
+    # "Ask for the leaflet" is a follow-up, not a missing label detail.
+    return sum(1 for item in missing_json["items"] if item["code"] != "leaflet")
+
+
+@router.get("", response_model=list[ScanListItem])
+def list_scans(
+    db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> list[ScanListItem]:
+    query = select(Scan).where(Scan.user_id == user.id).order_by(Scan.created_at.desc())
+    scans = db.scalars(query.limit(1000)).all()
+    ids = [s.id for s in scans]
+    # One query each for the latest fields and verdicts (ordered, so the newest wins).
+    fields: dict[uuid.UUID, dict[str, Any]] = {}
+    verdicts: dict[uuid.UUID, tuple[VerdictCode, dict[str, Any]]] = {}
+    if ids:
+        extraction_rows = select(Extraction.scan_id, Extraction.fields_json).where(
+            Extraction.scan_id.in_(ids)
+        )
+        for scan_id, fields_json in db.execute(extraction_rows.order_by(Extraction.created_at)):
+            fields[scan_id] = fields_json
+        verdict_rows = select(Verdict.scan_id, Verdict.verdict, Verdict.missing_json).where(
+            Verdict.scan_id.in_(ids)
+        )
+        for scan_id, code, missing in db.execute(verdict_rows.order_by(Verdict.created_at)):
+            verdicts[scan_id] = (code, missing)
+    items = []
+    for s in scans:
+        f = fields.get(s.id, {})
+        v = verdicts.get(s.id)
+        items.append(
+            ScanListItem(
+                id=s.id,
+                created_at=s.created_at,
+                status=s.status,
+                product_name=f.get("product_name"),
+                plant=(f.get("plant") or {}).get("value"),
+                verdict=v[0] if v else None,
+                missing=_missing_count(v[1]) if v else None,
+            )
+        )
+    return items
+
+
+@router.get("/{scan_id}/history", response_model=ScanHistory)
+def scan_history(
+    scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> ScanHistory:
+    scan = own_scan(db, scan_id, user)
+    corrections = db.execute(
+        select(Correction, User.full_name)
+        .join(Extraction, Correction.extraction_id == Extraction.id)
+        .outerjoin(User, Correction.user_id == User.id)
+        .where(Extraction.scan_id == scan.id)
+        .order_by(Correction.created_at)
+    ).all()
+    activity = db.execute(
+        select(AuditLog, User.full_name)
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .where(AuditLog.entity_type == "scan", AuditLog.entity_id == str(scan.id))
+        .order_by(AuditLog.created_at)
+    ).all()
+    shares = db.scalars(
+        select(ShareLink)
+        .join(Verdict, ShareLink.verdict_id == Verdict.id)
+        .where(Verdict.scan_id == scan.id)
+        .order_by(ShareLink.created_at.desc())
+    ).all()
+    return ScanHistory(
+        corrections=[
+            CorrectionOut(
+                field=c.field,
+                old=(c.old_value or {}).get("value"),
+                new=(c.new_value or {}).get("value"),
+                by=name,
+                at=c.created_at,
+            )
+            for c, name in corrections
+        ],
+        activity=[
+            ActivityOut(action=a.action, by=name, at=a.created_at, details=a.details_json)
+            for a, name in activity
+        ],
+        shares=[ShareOut.model_validate(s) for s in shares],
+    )
 
 
 @router.delete("/{scan_id}", status_code=204)
@@ -306,7 +416,7 @@ def delete_scan(
     storage: Storage = Depends(get_storage),
     user: User = Depends(pharmacist_only),
 ) -> Response:
-    scan = _own_scan(db, scan_id, user)
+    scan = own_scan(db, scan_id, user)
     if scan.image_path:
         storage.delete(scan.image_path)
     db.delete(scan)  # extractions, corrections and verdicts cascade in the database
