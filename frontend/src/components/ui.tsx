@@ -156,6 +156,32 @@ export function Notice({
   );
 }
 
+export function Steps({ current }: { current: number }) {
+  const steps = ["steps.scan", "steps.review", "steps.result", "steps.summary"] as const;
+  return (
+    <nav aria-label={t("steps.label")} className="no-print">
+      <ol className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0">
+        {steps.map((key, i) => {
+          const n = i + 1;
+          const state = n < current ? "done" : n === current ? "current" : "todo";
+          return (
+            <li key={key} aria-current={state === "current" ? "step" : undefined} className="flex items-center gap-2">
+              <span
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-sm font-semibold ${
+                  state === "todo" ? "border-border-2 bg-surface text-muted" : "border-accent bg-accent text-on-accent"
+                }`}
+              >
+                {n}
+              </span>
+              <span className={state === "current" ? "font-semibold" : "text-muted"}>{t(key)}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <p className="m-0 text-eyebrow font-semibold uppercase tracking-[0.06em] text-muted">

@@ -33,6 +33,7 @@ services:
     volumes:
       - uploads:/data/storage
       - ./data/extraction_cache:/data/extraction_cache
+      - ./data/reference:/data/reference:ro
     depends_on:
       db:
         condition: service_healthy

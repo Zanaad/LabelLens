@@ -149,9 +149,13 @@ describe("scan and review", () => {
     expect(sentBody(fetchMock, "/api/scans/text").text).toContain("MEADOW CUP");
   });
 
-  it("sends only changed fields when the review is confirmed", async () => {
+  it("sends only changed fields, then checks the evidence and shows the result", async () => {
     const fetchMock = mockApi(pharmacist, (url) =>
-      url === "/api/scans/s1" || url === "/api/scans/s1/fields" ? { status: 200, body: scan } : undefined,
+      url === "/api/scans/s1" || url === "/api/scans/s1/fields"
+        ? { status: 200, body: scan }
+        : url === "/api/scans/s1/verdict"
+          ? { status: 201, body: verdict }
+          : undefined,
     );
     renderApp("/scans/s1/review");
     const user = userEvent.setup();
@@ -159,7 +163,54 @@ describe("scan and review", () => {
     await user.click(screen.getAllByRole("button", { name: "Add value from leaflet" })[0]!);
     await user.type(screen.getByLabelText("Extract ratio (DER)"), "4-7:1");
     await user.click(screen.getByRole("button", { name: /Check evidence/ }));
-    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/scans/s1/fields")).toBe(true));
+    expect(await screen.findByRole("heading", { level: 2, name: "Partly matches" })).toBeInTheDocument();
     expect(sentBody(fetchMock, "/api/scans/s1/fields")).toEqual({ fields: { extract_ratio: "4-7:1" } });
+  });
+});
+
+const verdict = {
+  id: "v1",
+  created_at: "2026-11-03T10:01:00Z",
+  rules_version: "0.1.0",
+  verdict: "partly_matches",
+  plant_latin: ["Chamaemelum nobile (L.) All.", "Matricaria recutita L."],
+  reasons: [
+    { code: "plant_ambiguous", params: { plant: "chamomile", options: ["Chamaemelum nobile (L.) All.", "Matricaria recutita L."] }, source: null, ask: null },
+    { code: "partly", params: { prep: "Herbal tea" }, source: "r1", ask: null },
+  ],
+  comparisons: [
+    {
+      reference_id: "r1",
+      name: "Herbal tea",
+      evidence_level: "Traditional use",
+      rows: [{ field: "plant", label: "chamomile", reference: "Matricaria recutita L.", status: "partial" }],
+    },
+  ],
+  missing: [{ code: "species", params: { plant: "chamomile", options: ["A", "B"] }, source: null, ask: "manufacturer" }],
+  sources: [
+    { id: "r1", herb_latin: "Matricaria recutita L.", evidence_level: null, source_doc: "EU monograph", source_section: null, source_url: null, verified: false },
+  ],
+};
+
+describe("result", () => {
+  it("words the verdict, reasons and questions and flags sample data", async () => {
+    mockApi(pharmacist, (url) =>
+      url === "/api/scans/s1" ? { status: 200, body: scan } : url === "/api/scans/s1/verdict" ? { status: 200, body: verdict } : undefined,
+    );
+    renderApp("/scans/s1/result");
+    expect(await screen.findByRole("heading", { level: 2, name: "Partly matches" })).toBeInTheDocument();
+    expect(screen.getByText(/can mean more than one species \(Chamaemelum nobile \(L\.\) All\. or Matricaria/)).toBeInTheDocument();
+    expect(screen.getByText(/Which species is this: A or B\?/)).toBeInTheDocument();
+    expect(screen.getByText(/Sample reference data/)).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Open source 1" }));
+    expect(within(screen.getByRole("dialog", { name: "Sources" })).getByText("EU monograph")).toBeInTheDocument();
+  });
+
+  it("goes back to the review when the scan has not been checked", async () => {
+    mockApi(pharmacist, (url) =>
+      url === "/api/scans/s1" ? { status: 200, body: scan } : url === "/api/scans/s1/verdict" ? { status: 404, body: { detail: "no_verdict" } } : undefined,
+    );
+    renderApp("/scans/s1/result");
+    expect(await screen.findByRole("heading", { level: 1, name: "Review extracted fields" })).toBeInTheDocument();
   });
 });

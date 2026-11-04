@@ -1,0 +1,106 @@
+{
+  "preparations": [
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb (flowering tops)",
+      "preparation_type": "Dry extract",
+      "extract_ratio_min": 3,
+      "extract_ratio_max": 7,
+      "solvent_type": "Methanol",
+      "solvent_strength": "80% (v/v)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/hyperici-herba",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb (flowering tops)",
+      "preparation_type": "Dry extract",
+      "extract_ratio_min": 3,
+      "extract_ratio_max": 6,
+      "solvent_type": "Ethanol",
+      "solvent_strength": "80% (v/v)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/hyperici-herba",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb",
+      "preparation_type": "Comminuted herbal substance (herbal tea)",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/hyperici-herba",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Ginkgo biloba L.",
+      "plant_part": "Leaf",
+      "preparation_type": "Refined and quantified dry extract",
+      "extract_ratio_min": 35,
+      "extract_ratio_max": 67,
+      "solvent_type": "Acetone",
+      "solvent_strength": "60% (m/m)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Ginkgo biloba L., folium",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/ginkgo-folium",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Ginkgo biloba L.",
+      "plant_part": "Leaf",
+      "preparation_type": "Powdered herbal substance",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Ginkgo biloba L., folium",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/ginkgo-folium",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Matricaria recutita L.",
+      "plant_part": "Flower",
+      "preparation_type": "Comminuted herbal substance (herbal tea)",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Matricaria recutita L., flos",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/matricariae-flos",
+      "verified": false,
+      "notes": "TODO(expert): placeholder copied from the design prototype; check against the monograph."
+    },
+    {
+      "herb_latin": "Matricaria recutita L.",
+      "plant_part": "Flower",
+      "preparation_type": "Liquid extract",
+      "solvent_type": "Ethanol",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Matricaria recutita L., flos",
+      "source_section": "Section 2, Qualitative and quantitative composition",
+      "source_url": "https://www.ema.europa.eu/en/medicines/herbal/matricariae-flos",
+      "verified": false,
+      "notes": "TODO(expert): placeholder from the design prototype; add the DER and ethanol concentration from the monograph."
+    }
+  ],
+  "plant_names": [
+    {"name": "St John's wort", "language": "en", "latin_name": "Hypericum perforatum L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Hypericum perforatum", "language": "la", "latin_name": "Hypericum perforatum L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Ginkgo", "language": "en", "latin_name": "Ginkgo biloba L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Ginkgo biloba", "language": "la", "latin_name": "Ginkgo biloba L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Chamomile", "language": "en", "latin_name": "Matricaria recutita L.", "verified": false, "notes": "TODO(expert): placeholder; \"chamomile\" alone can mean either species."},
+    {"name": "Chamomile", "language": "en", "latin_name": "Chamaemelum nobile (L.) All.", "verified": false, "notes": "TODO(expert): placeholder; \"chamomile\" alone can mean either species."},
+    {"name": "German chamomile", "language": "en", "latin_name": "Matricaria recutita L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Roman chamomile", "language": "en", "latin_name": "Chamaemelum nobile (L.) All.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Matricaria recutita", "language": "la", "latin_name": "Matricaria recutita L.", "verified": false, "notes": "TODO(expert): placeholder, check."},
+    {"name": "Chamaemelum nobile", "language": "la", "latin_name": "Chamaemelum nobile (L.) All.", "verified": false, "notes": "TODO(expert): placeholder, check."}
+  ]
+}

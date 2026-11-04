@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { errorCode } from "../api/client";
-import { FIELD_KEYS, useScan, useUpdateFields, type ExtractedField, type FieldKey, type Scan } from "../api/scans";
+import {
+  FIELD_KEYS,
+  useCheckScan,
+  useScan,
+  useUpdateFields,
+  type ExtractedField,
+  type FieldKey,
+  type Scan,
+} from "../api/scans";
 import { NotFoundPage } from "./StatusPages";
 import {
   ArrowLeftIcon,
@@ -12,37 +20,11 @@ import {
   LockIcon,
   NotStatedIcon,
 } from "../components/icons";
-import { Button, Eyebrow, Notice, inputClass } from "../components/ui";
+import { Button, Eyebrow, Notice, Steps, inputClass } from "../components/ui";
 import { t, type MessageKey } from "../i18n";
 
 const MONO: FieldKey[] = ["extract_ratio", "batch", "expiry"];
 const chip = "rounded-full px-3 py-1.5 text-sm";
-
-function Steps({ current }: { current: number }) {
-  const steps = ["steps.scan", "steps.review", "steps.result", "steps.summary"] as const;
-  return (
-    <nav aria-label={t("steps.label")}>
-      <ol className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0">
-        {steps.map((key, i) => {
-          const n = i + 1;
-          const state = n < current ? "done" : n === current ? "current" : "todo";
-          return (
-            <li key={key} aria-current={state === "current" ? "step" : undefined} className="flex items-center gap-2">
-              <span
-                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-sm font-semibold ${
-                  state === "todo" ? "border-border-2 bg-surface text-muted" : "border-accent bg-accent text-on-accent"
-                }`}
-              >
-                {n}
-              </span>
-              <span className={state === "current" ? "font-semibold" : "text-muted"}>{t(key)}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
 
 function ConfidenceBadge({ field }: { field: ExtractedField }) {
   const level =
@@ -66,6 +48,7 @@ function ConfidenceBadge({ field }: { field: ExtractedField }) {
 function ReviewForm({ scan }: { scan: Scan }) {
   const navigate = useNavigate();
   const update = useUpdateFields(scan.id);
+  const check = useCheckScan(scan.id);
   const initial = Object.fromEntries(FIELD_KEYS.map((k) => [k, scan.fields[k]?.value ?? ""])) as Record<FieldKey, string>;
   const [values, setValues] = useState(initial);
   const [adding, setAdding] = useState<Set<FieldKey>>(new Set());
@@ -82,12 +65,17 @@ function ReviewForm({ scan }: { scan: Scan }) {
     edited: FIELD_KEYS.filter(isEdited).length,
   };
 
+  // Save corrections first, then check the evidence with the corrected fields.
   const next = () => {
-    const goToResult = () => navigate(`/scans/${scan.id}/result`);
-    if (changed.length === 0) return goToResult();
     const fields = Object.fromEntries(changed.map((k) => [k, values[k].trim() || null]));
-    update.mutate(fields, { onSuccess: goToResult });
+    const saved = changed.length ? update.mutateAsync(fields) : Promise.resolve();
+    saved
+      .then(() => check.mutateAsync())
+      .then(() => navigate(`/scans/${scan.id}/result`))
+      .catch(() => {}); // shown below from update.error / check.error
   };
+  const error = update.error ?? check.error;
+  const busy = update.isPending || check.isPending;
 
   return (
     <div className="flex flex-col gap-6">
@@ -224,15 +212,15 @@ function ReviewForm({ scan }: { scan: Scan }) {
             </Link>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted">{t("review.missingHint")}</span>
-              <Button disabled={update.isPending} onClick={next}>
+              <Button disabled={busy} onClick={next}>
                 {t("review.next")}
                 <ArrowRightIcon />
               </Button>
             </div>
           </div>
-          {update.isError && (
+          {error && (
             <div className="px-6 pb-5">
-              <Notice tone="error">{t(`error.${errorCode(update.error)}` as MessageKey)}</Notice>
+              <Notice tone="error">{t(`error.${errorCode(error)}` as MessageKey)}</Notice>
             </div>
           )}
         </section>

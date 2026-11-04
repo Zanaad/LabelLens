@@ -17,7 +17,7 @@ its source.
 > LabelLens gives no dosing or treatment advice.
 
 Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: early
-development (auth, roles, app shell).
+development (scan, review fields and result work; reference data is a sample).
 
 ## Quick start (Docker)
 
@@ -41,6 +41,13 @@ docker compose exec backend python -m app.cli create-admin --email you@example.o
 ```
 
 Then sign in as that admin, open **Admin**, and create invitation links for reviewers.
+
+Load the reference table (studied preparations and plant names). Running it again only applies
+changes:
+
+```bash
+docker compose exec backend python -m app.cli import-reference /data/reference/sample.json
+```
 
 ## Label reading
 
@@ -99,9 +106,11 @@ docker run --rm -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm -v "$PWD":/ap
 ## Data sources and licences
 
 Reference preparations come from EU herbal monographs published by the European Medicines Agency (Committee on Herbal Medicinal Products,
-HMPC) and the studies they cite. The reference table in this repository currently contains
-**placeholder rows only** (`verified=false`); real rows are added and checked by a pharmacognosy
-mentor.
+HMPC) and the studies they cite. The reference table in this repository
+(`data/reference/sample.json`) currently contains **placeholder rows only** (`verified=false`,
+values taken from the design prototype); real rows are added and checked by a pharmacognosy
+mentor. The import refuses unchecked rows without a `TODO(expert)` note, and the result page
+says "sample reference data" while any row it used is unchecked.
 
 Code: [MIT licence](LICENSE).
 
@@ -119,12 +128,12 @@ backend/
     main.py          FastAPI app factory
     config.py        settings from env vars (see .env.example)
     db.py            database engine and session
-    cli.py           admin commands (create-admin)
-    api/             routes (auth, invitations, health), auth dependencies, schemas
+    cli.py           admin commands (create-admin, import-reference)
+    api/             routes (auth, invitations, scans, health), auth dependencies, schemas
     models/          SQLAlchemy models
     services/        password hashing, tokens, rate limiting, audit log, file storage
     extraction/      label extraction providers
-    rules/           rules engine (pure Python)
+    rules/           rules engine (pure Python, versioned): label fields vs studied preparations
   alembic/           database migrations
   tests/             pytest
 frontend/src/
@@ -134,6 +143,6 @@ frontend/src/
   pages/             one file per screen
   i18n/              UI strings (English)
   theme/             design tokens (CSS variables), theme toggle
-data/                reference table imports, annotated labels
+data/                reference table (sample.json), saved label readings, annotated labels
 validation/          validation harness, baselines, results
 ```

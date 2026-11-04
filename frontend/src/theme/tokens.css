@@ -37,6 +37,7 @@
   --ll-shade-3: #3f8c82;
   --ll-shade-4: #0d5c57;
   --ll-photo: #2b3332;
+  --ll-backdrop: rgb(10 20 19 / 0.38); /* behind dialogs and drawers, both themes */
 
   color-scheme: light;
 }

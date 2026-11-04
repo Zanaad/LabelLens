@@ -40,6 +40,7 @@
   --color-shade-3: var(--ll-shade-3);
   --color-shade-4: var(--ll-shade-4);
   --color-photo: var(--ll-photo);
+  --color-backdrop: var(--ll-backdrop);
 }
 
 /* Non-colour tokens */
@@ -61,6 +62,8 @@
   --text-h1--line-height: 1.5;
   --text-page: 32px;
   --text-page--line-height: 1.2;
+  --text-verdict: 30px;
+  --text-verdict--line-height: 1.2;
 }
 
 @layer base {
