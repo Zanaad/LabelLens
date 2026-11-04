@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Rules for working in this repo. See README.md for what LabelLens is, setup, commands and layout.
-If a local PLAN.md exists, read it for phases, design notes and open questions (it is never pushed).
+Read PLAN.md for phases, decisions, design notes and open questions.
 
 ## Hard rules
 
@@ -10,8 +10,8 @@ If a local PLAN.md exists, read it for phases, design notes and open questions (
 - **Wording:** never use the word "safe" in user-facing text;
   never give dosing or treatment advice; missing info is missing, never good news. Every page shows
   "Research prediction, not medical advice"; results show "This checks the label, not what is
-  inside the product". Tests enforce the "safe" ban (`frontend/src/i18n/i18n.test.ts`; backend
-  verdict-string test arrives with the rules engine).
+  inside the product". The rules engine returns codes only; all verdict, reason and question
+  wording lives in `en.ts`, where `frontend/src/i18n/i18n.test.ts` enforces the "safe" ban.
 - **Colour:** never green or red for verdicts; always pair status colour with an icon and text.
 - **Reference data:** never invent monograph content. Placeholder rows must have `verified=false`
   and a `TODO(expert)` note. Same for `plant_names`.
@@ -39,9 +39,10 @@ If a local PLAN.md exists, read it for phases, design notes and open questions (
 - **Never push sensitive data.** Secrets, keys and passwords live only in `.env` (gitignored);
   `.env.example` keeps them empty. No password literals anywhere, not even fake ones in tests,
   compose defaults, CI or docs (GitGuardian flags them); generate test passwords at runtime.
-- **What gets pushed:** code, config, `README.md` and `CLAUDE.md`. Not pushed: `PLAN.md`, the
-  design (`docs/design/`), other docs (`docs/*.md`, `DATA_SOURCES.md`, `data/README.md`,
-  `validation/README.md`) and `scripts/unpack_design.py`. Don't create new documentation files.
+- **What gets pushed:** code, config, `README.md`, `CLAUDE.md`, `PLAN.md` and `DATA_SOURCES.md`.
+  Not pushed: the design (`docs/design/`, shared with the team separately), other docs
+  (`docs/*.md`, `data/README.md`, `validation/README.md`) and `scripts/unpack_design.py`. Don't
+  create new documentation files.
 
 ## Conventions
 

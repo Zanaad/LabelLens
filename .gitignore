@@ -24,8 +24,6 @@ validation/results/*
 !validation/results/.gitkeep
 
 # Local-only planning, design and docs
-PLAN.md
-DATA_SOURCES.md
 docs/
 data/README.md
 validation/README.md
