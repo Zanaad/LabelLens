@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.api.schemas import LoginIn, RegisterIn, UserOut
+from app.api.schemas import LoginIn, ProfileUpdate, RegisterIn, UserOut
 from app.config import get_settings
 from app.db import get_db
 from app.models import Role, User
@@ -110,4 +110,15 @@ def logout(response: Response) -> Response:
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    body: ProfileUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> User:
+    user.organisation = (body.organisation or "").strip() or None
+    if body.onboarded and user.onboarded_at is None:
+        user.onboarded_at = datetime.now(UTC)
+    db.commit()
     return user

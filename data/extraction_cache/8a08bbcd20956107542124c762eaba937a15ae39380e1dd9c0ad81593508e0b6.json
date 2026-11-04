@@ -1,0 +1,21 @@
+{
+  "provider": "hand-written fixture",
+  "model": "claude-opus-5-5",
+  "prompt_version": "2026-11-03.1",
+  "note": "Example label 'Meadow Cup' (fictional product). Written by hand to the extraction rules; replace with a real model output once an API key is available.",
+  "output": {
+    "label_readable": true,
+    "is_herbal_product": true,
+    "product_name": "MEADOW CUP",
+    "plant": {"value": "chamomile", "status": "stated", "confidence": 0.9, "evidence": "100% chamomile flowers"},
+    "plant_part": {"value": "flowers", "status": "stated", "confidence": 0.95, "evidence": "100% chamomile flowers"},
+    "preparation_type": {"value": "tea", "status": "stated", "confidence": 0.9, "evidence": "Chamomile tea"},
+    "extract_ratio": {"value": null, "status": "not_stated", "confidence": 0.95, "evidence": null},
+    "solvent": {"value": null, "status": "not_stated", "confidence": 0.95, "evidence": null},
+    "marker": {"value": null, "status": "not_stated", "confidence": 0.95, "evidence": null},
+    "dose": {"value": "1.5 g", "status": "stated", "confidence": 0.9, "evidence": "20 tea bags × 1.5 g"},
+    "other_ingredients": {"value": null, "status": "not_stated", "confidence": 0.9, "evidence": null},
+    "batch": {"value": null, "status": "not_stated", "confidence": 0.95, "evidence": null},
+    "expiry": {"value": "08/2027", "status": "stated", "confidence": 0.97, "evidence": "Best before 08/2027"}
+  }
+}

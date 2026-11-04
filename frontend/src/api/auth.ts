@@ -91,6 +91,15 @@ export function useCreateInvitation() {
   });
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { organisation: string | null; onboarded: boolean }) =>
+      api<User>("/api/auth/me", { method: "PATCH", json: body }),
+    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
