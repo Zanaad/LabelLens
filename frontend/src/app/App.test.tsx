@@ -10,8 +10,9 @@ import { App } from "./App";
 const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null };
 const expert: User = { ...pharmacist, id: "2", email: "besim@example.org", full_name: "Besim Hoxha", role: "expert" };
 
-// Generated per run so no password literal is ever committed.
+// Generated per run so no password or token literal is ever committed.
 const PASSWORD = crypto.randomUUID();
+const SHARE_TOKEN = crypto.randomUUID();
 
 type Reply = { status: number; body?: unknown } | undefined;
 
@@ -212,5 +213,70 @@ describe("result", () => {
     );
     renderApp("/scans/s1/result");
     expect(await screen.findByRole("heading", { level: 1, name: "Review extracted fields" })).toBeInTheDocument();
+  });
+});
+
+describe("history and sharing", () => {
+  const now = new Date().toISOString();
+  const row = { created_at: now, status: "checked", missing: 0 };
+  const list = [
+    { ...row, id: "a1", product_name: "MEADOW CUP", plant: "chamomile", verdict: "partly_matches", missing: 2 },
+    { ...row, id: "b2", product_name: "GINKGOVITA 120", plant: "Ginkgo biloba", verdict: "matches" },
+  ];
+
+  it("filters my scans by verdict", async () => {
+    mockApi(pharmacist, (url) => (url === "/api/scans" ? { status: 200, body: list } : undefined));
+    renderApp("/scans");
+    expect(await screen.findByText("2 of 2 scans shown")).toBeInTheDocument();
+    await userEvent.setup().selectOptions(screen.getByLabelText("Verdict"), "matches");
+    expect(screen.getByText("1 of 2 scans shown")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "MEADOW CUP" })).not.toBeInTheDocument();
+  });
+
+  it("saves corrections on the scan detail page and checks again", async () => {
+    const fetchMock = mockApi(pharmacist, (url) =>
+      url === "/api/scans/s1" || url === "/api/scans/s1/fields"
+        ? { status: 200, body: scan }
+        : url === "/api/scans/s1/verdict"
+          ? { status: 200, body: verdict }
+          : url === "/api/scans/s1/history"
+            ? { status: 200, body: { corrections: [], activity: [], shares: [] } }
+            : undefined,
+    );
+    renderApp("/scans/s1");
+    const user = userEvent.setup();
+    const plant = await screen.findByLabelText("Plant");
+    await user.clear(plant);
+    await user.type(plant, "German chamomile");
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save and re-check" }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u, init]) => u === "/api/scans/s1/verdict" && init?.method === "POST")).toBe(true),
+    );
+    expect(sentBody(fetchMock, "/api/scans/s1/fields")).toEqual({ fields: { plant: "German chamomile" } });
+  });
+
+  it("shows a shared result in plain language without signing in", async () => {
+    const shared = {
+      product_name: "MEADOW CUP",
+      plant: "chamomile",
+      verdict: "partly_matches",
+      shared_by: "Arta Krasniqi",
+      organisation: "City Pharmacy",
+      shared_at: now,
+      expires_at: now,
+    };
+    const fetchMock = mockApi(null, (url) => (url === "/api/shared" ? { status: 200, body: shared } : undefined));
+    renderApp(`/p#${SHARE_TOKEN}`);
+    const head = "The label partly matches the kind of chamomile preparation that was studied.";
+    expect(await screen.findByRole("heading", { level: 2, name: head })).toBeInTheDocument();
+    expect(screen.getByText(/Arta Krasniqi, City Pharmacy/)).toBeInTheDocument();
+    expect(sentBody(fetchMock, "/api/shared")).toEqual({ token: SHARE_TOKEN });
+  });
+
+  it("explains an expired or revoked patient link", async () => {
+    mockApi(null, (url) => (url === "/api/shared" ? { status: 404, body: { detail: "share_invalid" } } : undefined));
+    renderApp(`/p#${SHARE_TOKEN}`);
+    expect(await screen.findByRole("heading", { name: "This link is not valid" })).toBeInTheDocument();
   });
 });

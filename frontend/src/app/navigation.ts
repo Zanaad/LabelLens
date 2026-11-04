@@ -6,7 +6,7 @@ type NavItem = { to: string; label: MessageKey; roles: Role[]; active?: RegExp }
 
 // Pharmacist nav follows the design; expert and admin navs are our own (not in the design).
 const NAV_ITEMS: NavItem[] = [
-  { to: "/scan", label: "nav.scan", roles: ["pharmacist"], active: /^\/scan$|^\/scans\/[^/]+\/(review|result)$/ },
+  { to: "/scan", label: "nav.scan", roles: ["pharmacist"], active: /^\/scan$|^\/scans\/[^/]+\/(review|result|summary)$/ },
   { to: "/scans", label: "nav.myScans", roles: ["pharmacist"], active: /^\/scans(\/[^/]+)?$/ },
   { to: "/review", label: "nav.reviewQueue", roles: ["expert", "admin"] },
   { to: "/admin", label: "nav.admin", roles: ["admin"] },

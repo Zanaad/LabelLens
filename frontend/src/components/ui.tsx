@@ -182,6 +182,15 @@ export function Steps({ current }: { current: number }) {
   );
 }
 
+// "Arta Krasniqi" -> "AK" for avatars.
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
+
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <p className="m-0 text-eyebrow font-semibold uppercase tracking-[0.06em] text-muted">

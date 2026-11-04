@@ -185,6 +185,62 @@ export const CloseIcon = (p: P) => (
   </Stroke>
 );
 
+export const ShareIcon = (p: P) => (
+  <Stroke {...p}>
+    <circle cx="6" cy="12" r="2.5" />
+    <circle cx="18" cy="6" r="2.5" />
+    <circle cx="18" cy="18" r="2.5" />
+    <path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6" />
+  </Stroke>
+);
+export const DownloadIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14" />
+  </Stroke>
+);
+export const LinkIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Stroke>
+);
+export const SearchIcon = (p: P) => (
+  <Stroke size={18} {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-4-4" />
+  </Stroke>
+);
+export const SortIcon = (p: P) => (
+  <Stroke size={14} {...p}>
+    <path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4" />
+  </Stroke>
+);
+export const InboxIcon = (p: P) => (
+  <Stroke size={28} {...p}>
+    <path d="M3 13l3-8h12l3 8v6H3z" />
+    <path d="M3 13h5l1 2h6l1-2h5" />
+  </Stroke>
+);
+export const DocumentIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M7 3h7l5 5v13H7z" />
+    <path d="M14 3v5h5M10 13h6M10 17h6" />
+  </Stroke>
+);
+export const HistoryIcon = (p: P) => (
+  <Stroke size={16} {...p}>
+    <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+    <path d="M4 4v4h4M12 8v4l3 2" />
+  </Stroke>
+);
+export const PrinterIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="M7 9V3h10v6" />
+    <rect x="3" y="9" width="18" height="8" rx="2" />
+    <path d="M7 14h10v7H7z" />
+  </Stroke>
+);
+
 export const UploadIcon = (p: P) => (
   <Stroke {...p}>
     <path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" />

@@ -64,6 +64,10 @@
   --text-page--line-height: 1.2;
   --text-verdict: 30px;
   --text-verdict--line-height: 1.2;
+  --text-stat: 36px; /* dashboard numbers */
+  --text-stat--line-height: 1.2;
+  --container-sheet: 210mm; /* A4 summary */
+  --container-reading: 820px; /* patient view */
 }
 
 @layer base {
@@ -101,7 +105,18 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
   .no-print {
     display: none !important;
+  }
+  html,
+  body {
+    background: var(--ll-surface);
+  }
+  main {
+    padding: 0 !important;
   }
 }
