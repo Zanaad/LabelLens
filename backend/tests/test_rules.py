@@ -3,7 +3,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy.orm import Session
 
-from app.cli import PreparationIn, ReferenceFile, import_reference
+from app.api.schemas import PreparationIn, ReferenceFile
+from app.cli import import_reference
 from app.rules.engine import Reference, Status, Verdict, evaluate, parse_ratio, parse_solvent
 
 SJW, GINKGO, CHAMOMILE = "Hypericum perforatum L.", "Ginkgo biloba L.", "Matricaria recutita L."
@@ -109,7 +110,7 @@ def test_parsers():
 
 
 def test_import_rejects_unchecked_rows_without_todo_and_is_idempotent(db: Session):
-    with pytest.raises(ValueError, match="TODO"):
+    with pytest.raises(ValueError, match="todo_note_required"):
         PreparationIn(herb_latin=SJW, plant_part="Herb", preparation_type="Dry extract")
     data = ReferenceFile.model_validate_json(SAMPLE.read_bytes())
     assert import_reference(db, data) == len(data.preparations) + len(data.plant_names)

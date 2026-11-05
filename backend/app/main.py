@@ -1,9 +1,23 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, Response
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api import auth, invitations, scans, shares
+from app.api import (
+    admin,
+    annotations,
+    auth,
+    invitations,
+    reference,
+    reviews,
+    scans,
+    shares,
+    validation,
+)
+from app.api.schemas import VALUE_ERROR_CODES
 from app.config import get_settings
 from app.db import get_db
 
@@ -26,15 +40,32 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type"],
     )
 
+    @app.exception_handler(RequestValidationError)
+    async def stable_value_errors(request: Request, exc: RequestValidationError) -> Response:
+        # Our validators raise ValueError(<code>); answer {"detail": code} like other API errors.
+        for err in exc.errors():
+            code = str(err.get("ctx", {}).get("error", ""))
+            if err.get("type") == "value_error" and code in VALUE_ERROR_CODES:
+                return JSONResponse({"detail": code}, status_code=422)
+        return await request_validation_exception_handler(request, exc)
+
     @app.get("/api/health", tags=["health"])
     def health(db: Session = Depends(get_db)) -> dict[str, str]:
         db.execute(text("SELECT 1"))
         return {"status": "ok"}
 
-    app.include_router(auth.router)
-    app.include_router(invitations.router)
-    app.include_router(scans.router)
-    app.include_router(shares.router)
+    for module in (
+        auth,
+        invitations,
+        admin,
+        scans,
+        shares,
+        reviews,
+        reference,
+        annotations,
+        validation,
+    ):
+        app.include_router(module.router)
     return app
 
 

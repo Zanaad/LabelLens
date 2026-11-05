@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     extraction_api_key: str = Field(default="", repr=False)
     extraction_cache_dir: str = "../data/extraction_cache"
 
+    # Email (password reset links). Empty SMTP_HOST turns sending off.
+    app_base_url: str = "http://localhost:8080"  # start of links inside emails
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
+    smtp_username: str = ""
+    smtp_password: str = Field(default="", repr=False)
+    smtp_from: str = "LabelLens <no-reply@labellens.local>"
+    password_reset_ttl_minutes: int = 60
+
     @field_validator("cors_origins")
     @classmethod
     def _no_wildcard(cls, v: str) -> str:

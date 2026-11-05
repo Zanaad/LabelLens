@@ -238,7 +238,7 @@ def update_fields(
 REFERENCE_FIELDS = [f.name for f in dataclasses.fields(engine.Reference) if f.name != "id"]
 
 
-def _verdict_out(v: Verdict) -> VerdictOut:
+def verdict_out(v: Verdict) -> VerdictOut:
     return VerdictOut(
         id=v.id,
         created_at=v.created_at,
@@ -299,7 +299,7 @@ def check_scan(
         details={"verdict": verdict.verdict.value},
     )
     db.commit()
-    return _verdict_out(verdict)
+    return verdict_out(verdict)
 
 
 def latest_verdict(db: Session, scan_id: uuid.UUID) -> Verdict | None:
@@ -319,7 +319,7 @@ def get_verdict(
     verdict = latest_verdict(db, own_scan(db, scan_id, user).id)
     if verdict is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_verdict")
-    return _verdict_out(verdict)
+    return verdict_out(verdict)
 
 
 def _missing_count(missing_json: dict[str, Any]) -> int:

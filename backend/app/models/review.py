@@ -30,13 +30,17 @@ class ExpertRating(IdMixin, CreatedMixin, Base):
 
 
 class Annotation(IdMixin, TimestampMixin, Base):
-    """Ground-truth fields for one label image in data/labels/."""
+    """A validation label: its photo or text, the correct fields and the expected verdict."""
 
     __tablename__ = "annotations"
 
-    label_ref: Mapped[str] = mapped_column(String(300), unique=True)  # path under data/labels/
-    image_sha256: Mapped[str | None] = mapped_column(String(64), index=True)
-    fields_json: Mapped[dict[str, Any]]
+    title: Mapped[str] = mapped_column(String(200))
+    # Storage key of the photo exactly as the model sees it (so its cached reading can be found).
+    label_ref: Mapped[str | None] = mapped_column(String(300), unique=True)
+    label_text: Mapped[str | None] = mapped_column(Text)
+    image_sha256: Mapped[str] = mapped_column(String(64), unique=True)  # of the photo or text
+    fields_json: Mapped[dict[str, Any]]  # field -> correct value, null when not on the label
+    notes: Mapped[str | None] = mapped_column(Text)
     expected_verdict: Mapped[VerdictCode | None] = mapped_column(
         str_enum(VerdictCode, "expected_verdict_code")
     )

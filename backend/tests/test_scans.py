@@ -10,7 +10,8 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.cli import ReferenceFile, import_reference
+from app.api.schemas import ReferenceFile
+from app.cli import import_reference
 from app.extraction.providers import (
     PROMPT_VERSION,
     CachedProvider,

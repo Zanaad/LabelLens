@@ -1,20 +1,34 @@
 """Email + password auth. Session = JWT in an httpOnly, SameSite=Lax cookie."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.api.schemas import LoginIn, ProfileUpdate, RegisterIn, UserOut
+from app.api.schemas import (
+    ForgotPasswordIn,
+    LoginIn,
+    PasswordResetIn,
+    ProfileUpdate,
+    RegisterIn,
+    UserOut,
+)
 from app.config import get_settings
 from app.db import get_db
-from app.models import Role, User
+from app.models import PasswordReset, Role, User
 from app.services.audit import audit
+from app.services.email import send_email
 from app.services.rate_limit import rate_limit
-from app.services.security import create_session_token, hash_password, verify_password
+from app.services.security import (
+    create_session_token,
+    hash_password,
+    hash_token,
+    new_opaque_token,
+    verify_password,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -106,6 +120,83 @@ def logout(response: Response) -> Response:
     )
     response.status_code = 204
     return response
+
+
+RESET_SUBJECT = "Reset your LabelLens password"
+RESET_BODY = """Hello {name},
+
+Someone asked to reset the password for your LabelLens account.
+To choose a new password, open this link within {minutes} minutes:
+
+{link}
+
+The link works once. If you did not ask for this, you can ignore this email; your password
+stays the same.
+
+LabelLens (research prototype)
+"""
+
+
+def start_password_reset(
+    db: Session, user: User, background: BackgroundTasks, requested_by: User | None = None
+) -> None:
+    """Create a one-time link and email it after the response (caller commits)."""
+    s = get_settings()
+    token, token_hash = new_opaque_token()
+    db.add(
+        PasswordReset(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(minutes=s.password_reset_ttl_minutes),
+        )
+    )
+    audit(
+        db,
+        "auth.password_reset_requested",
+        user_id=(requested_by or user).id,
+        entity_type="user",
+        entity_id=user.id,
+    )
+    body = RESET_BODY.format(
+        name=user.full_name,
+        minutes=s.password_reset_ttl_minutes,
+        link=f"{s.app_base_url.rstrip('/')}/reset-password#{token}",
+    )
+    background.add_task(send_email, user.email, RESET_SUBJECT, body)
+
+
+@router.post("/forgot-password", status_code=202, dependencies=[auth_limit])
+def forgot_password(
+    body: ForgotPasswordIn, background: BackgroundTasks, db: Session = Depends(get_db)
+) -> Response:
+    user = db.scalar(select(User).where(User.email == normalise_email(body.email)))
+    if user is not None and user.is_active:
+        start_password_reset(db, user, background)
+        db.commit()
+    # Same answer either way, so the form cannot be used to find out who has an account.
+    return Response(status_code=202)
+
+
+@router.post("/reset-password", status_code=204, dependencies=[auth_limit])
+def reset_password(body: PasswordResetIn, db: Session = Depends(get_db)) -> Response:
+    now = datetime.now(UTC)
+    reset = db.scalar(
+        select(PasswordReset).where(PasswordReset.token_hash == hash_token(body.token))
+    )
+    user = db.get(User, reset.user_id) if reset else None
+    if reset is None or reset.used_at or reset.expires_at <= now or not (user and user.is_active):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="reset_invalid")
+    check_new_password(body.password)
+    user.password_hash = hash_password(body.password)
+    user.sessions_valid_from = now  # signs the account out everywhere
+    pending = select(PasswordReset).where(
+        PasswordReset.user_id == user.id, PasswordReset.used_at.is_(None)
+    )
+    for r in db.scalars(pending):
+        r.used_at = now
+    audit(db, "auth.password_reset", user_id=user.id, entity_type="user", entity_id=user.id)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/me", response_model=UserOut)

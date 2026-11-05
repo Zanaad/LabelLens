@@ -4,13 +4,14 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
 
 import anthropic
 from anthropic.types.beta import BetaContentBlockParam
+from pydantic import BaseModel
 
 from app.config import get_settings
-from app.extraction.schema import LabelExtraction
+from app.extraction.schema import LabelExtraction, PlainLabelExtraction
 
 # Bump on every prompt change; it is stored with each extraction and part of the cache key.
 PROMPT_VERSION = "2026-11-03.1"
@@ -44,6 +45,14 @@ powdered herb, tea)
 - batch: the batch or lot number
 - expiry: the expiry or best-before date"""
 
+# Validation baseline only: a plain request without the evidence and never-infer rules above.
+PLAIN_PROMPT_VERSION = "plain-2026-11-04.1"
+PLAIN_PROMPT = """Read the label of this herbal product and fill in the fields: plant, plant part, \
+preparation type, extract ratio, extraction solvent, standardised marker, dose per unit, other \
+ingredients, batch number, expiry date and product name. Use null for anything you cannot find."""
+
+Schema = TypeVar("Schema", bound=BaseModel)
+
 # Models that accept server-side refusal fallbacks (fallbacks="default").
 FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
 
@@ -72,8 +81,13 @@ class ExtractionProvider(Protocol):
     def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult: ...
 
 
-def cache_key(data: bytes, model: str) -> str:
-    return hashlib.sha256(data + PROMPT_VERSION.encode() + model.encode()).hexdigest()
+def cache_key(data: bytes, model: str, prompt_version: str = PROMPT_VERSION) -> str:
+    return hashlib.sha256(data + prompt_version.encode() + model.encode()).hexdigest()
+
+
+def read_cached(cache_dir: str | Path, key: str) -> dict[str, Any] | None:
+    path = Path(cache_dir) / f"{key}.json"
+    return json.loads(path.read_text())["output"] if path.is_file() else None
 
 
 def _input_bytes(image: bytes | None, text: str | None) -> bytes:
@@ -95,10 +109,9 @@ class CachedProvider:
 
     def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
         key = cache_key(_input_bytes(image, text), self.model)
-        path = self.cache_dir / f"{key}.json"
-        if not path.is_file():
+        output = read_cached(self.cache_dir, key)
+        if output is None:
             raise ExtractionError("not_in_cache")
-        output = json.loads(path.read_text())["output"]
         fields = LabelExtraction.model_validate(output)
         return ExtractionResult(output, fields, self.name, self.model, key, None)
 
@@ -114,6 +127,23 @@ class ClaudeProvider:
 
     def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
         key = cache_key(_input_bytes(image, text), self.model)
+        started = time.monotonic()
+        fields = self._parse(image, text, PROMPT, LabelExtraction)
+        latency_ms = int((time.monotonic() - started) * 1000)
+        output = fields.model_dump(mode="json")
+        self._save(key, PROMPT_VERSION, output)
+        return ExtractionResult(output, fields, self.name, self.model, key, latency_ms)
+
+    def extract_plain(self, *, image: bytes | None, text: str | None) -> dict[str, Any]:
+        """Validation baseline reading; cached under PLAIN_PROMPT_VERSION."""
+        key = cache_key(_input_bytes(image, text), self.model, PLAIN_PROMPT_VERSION)
+        output = self._parse(image, text, PLAIN_PROMPT, PlainLabelExtraction).model_dump()
+        self._save(key, PLAIN_PROMPT_VERSION, output)
+        return output
+
+    def _parse(
+        self, image: bytes | None, text: str | None, prompt: str, schema: type[Schema]
+    ) -> Schema:
         label: BetaContentBlockParam
         if image is not None:
             data = base64.standard_b64encode(image).decode()
@@ -126,36 +156,29 @@ class ClaudeProvider:
         extra: dict[str, Any] = {}
         if self.model in FALLBACK_MODELS:
             extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
-
-        started = time.monotonic()
         try:
             response = self.client.beta.messages.parse(
                 model=self.model,
                 max_tokens=16000,
                 output_config={"effort": "medium"},
-                output_format=LabelExtraction,
-                messages=[{"role": "user", "content": [label, {"type": "text", "text": PROMPT}]}],
+                output_format=schema,
+                messages=[{"role": "user", "content": [label, {"type": "text", "text": prompt}]}],
                 **extra,
             )
         except anthropic.AuthenticationError:
             raise ExtractionError("provider_misconfigured") from None
         except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError):
             raise ExtractionError("provider_unavailable") from None
-        latency_ms = int((time.monotonic() - started) * 1000)
-
         if response.stop_reason == "refusal" or response.parsed_output is None:
             raise ExtractionError("extraction_failed")
-        fields = response.parsed_output
-        output = fields.model_dump(mode="json")
-        self._save(key, output)
-        return ExtractionResult(output, fields, self.name, self.model, key, latency_ms)
+        return response.parsed_output
 
-    def _save(self, key: str, output: dict[str, Any]) -> None:
+    def _save(self, key: str, prompt_version: str, output: dict[str, Any]) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         record = {
             "provider": self.name,
             "model": self.model,
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": prompt_version,
             "output": output,
         }
         path = self.cache_dir / f"{key}.json"

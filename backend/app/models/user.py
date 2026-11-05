@@ -22,6 +22,21 @@ class User(IdMixin, TimestampMixin, Base):
     consent_terms_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     onboarded_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # Sessions issued before this moment are rejected (set when the password is reset).
+    sessions_valid_from: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class PasswordReset(IdMixin, CreatedMixin, Base):
+    """One-time reset link sent by email. Only the SHA-256 of the token is stored."""
+
+    __tablename__ = "password_resets"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class Invitation(IdMixin, CreatedMixin, Base):

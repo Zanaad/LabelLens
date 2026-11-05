@@ -40,15 +40,19 @@ def create_session_token(user_id: uuid.UUID) -> str:
     return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)
 
 
-def decode_session_token(token: str) -> uuid.UUID | None:
+def decode_session_token(token: str) -> tuple[uuid.UUID, int] | None:
+    """Return (user id, issued-at in epoch seconds) for a valid session token."""
     s = get_settings()
     try:
         payload = jwt.decode(
-            token, s.jwt_secret, algorithms=[s.jwt_algorithm], options={"require": ["exp", "sub"]}
+            token,
+            s.jwt_secret,
+            algorithms=[s.jwt_algorithm],
+            options={"require": ["exp", "sub", "iat"]},
         )
         if payload.get("typ") != "session":
             return None
-        return uuid.UUID(payload["sub"])
+        return uuid.UUID(payload["sub"]), int(payload["iat"])
     except (jwt.PyJWTError, ValueError):
         return None
 

@@ -1,69 +1,33 @@
-# Admin commands. create-admin: the first admin (password from ADMIN_PASSWORD or prompted).
-# import-reference: load studied preparations and plant names from a JSON file (upsert).
+# Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), import-reference
+# (upsert from JSON), run-validation (same as Validation -> Run) and fetch-readings (paid API).
 
 import argparse
 import getpass
+import json
 import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.schemas import ReferenceFile
 from app.config import get_settings
 from app.db import get_engine
-from app.models import PlantName, ReferenceHistory, ReferencePreparation, Role, User
+from app.extraction.providers import (
+    PLAIN_PROMPT_VERSION,
+    ClaudeProvider,
+    ExtractionError,
+    cache_key,
+    read_cached,
+)
+from app.models import Annotation, PlantName, ReferenceHistory, ReferencePreparation, Role, User
 from app.services.audit import audit
 from app.services.security import hash_password
-
-
-class Curated(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    verified: bool = False
-    notes: str | None = None
-
-    @model_validator(mode="after")
-    def unverified_needs_todo(self) -> Self:
-        if not self.verified and "TODO(expert)" not in (self.notes or ""):
-            raise ValueError("unverified rows need a TODO(expert) note")
-        return self
-
-
-class PreparationIn(Curated):
-    herb_latin: str = Field(min_length=1, max_length=200)
-    plant_part: str = Field(min_length=1, max_length=100)
-    preparation_type: str = Field(min_length=1, max_length=100)
-    extract_ratio_min: float | None = Field(default=None, gt=0)
-    extract_ratio_max: float | None = Field(default=None, gt=0)
-    solvent_type: str | None = Field(default=None, max_length=100)
-    solvent_strength: str | None = Field(default=None, max_length=100)
-    evidence_level: str | None = Field(default=None, max_length=64)
-    source_doc: str | None = Field(default=None, max_length=300)
-    source_section: str | None = Field(default=None, max_length=100)
-    source_url: str | None = Field(default=None, max_length=500)
-
-    @model_validator(mode="after")
-    def ratio_range(self) -> Self:
-        low, high = self.extract_ratio_min, self.extract_ratio_max
-        if (low is None) != (high is None) or (low and high and low > high):
-            raise ValueError("set both extract_ratio_min and extract_ratio_max, min <= max")
-        return self
-
-
-class PlantNameIn(Curated):
-    name: str = Field(min_length=1, max_length=200)
-    language: str = Field(min_length=2, max_length=8)
-    latin_name: str = Field(min_length=1, max_length=200)
-
-
-class ReferenceFile(BaseModel):
-    preparations: list[PreparationIn] = []
-    plant_names: list[PlantNameIn] = []
-
+from app.services.storage import get_storage
+from app.services.validation import run_validation, store_run
 
 PREP_KEY = (
     "herb_latin",
@@ -142,6 +106,57 @@ def create_admin(email: str, name: str, password: str) -> int:
     return 0
 
 
+def validate(include_drafts: bool, out: Path | None) -> int:
+    s = get_settings()
+    with Session(get_engine()) as db:
+        metrics = run_validation(
+            db,
+            get_storage(),
+            model=s.extraction_model,
+            cache_dir=s.extraction_cache_dir,
+            include_drafts=include_drafts,
+        )
+        run = store_run(db, metrics, None)
+        audit(db, "validation.run", entity_type="validation_run", entity_id=run.id)
+        db.commit()
+    if out:
+        out.mkdir(parents=True, exist_ok=True)
+        path = out / f"run-{datetime.now(UTC):%Y%m%d-%H%M%S}.json"
+        path.write_text(json.dumps(metrics, indent=2, ensure_ascii=False))
+        print(f"Wrote {path}")
+    v = metrics["verdicts"]
+    print(
+        f"Run {run.id}: {metrics['dataset']['labels']} labels; verdict right "
+        f"{v['end_to_end']['correct']}/{v['end_to_end']['total']} (with the label reader), "
+        f"{v['rules_only']['correct']}/{v['rules_only']['total']} (with the correct fields)."
+    )
+    return 0
+
+
+def fetch_readings() -> int:
+    """Calls the Claude API (costs money) for labels without a saved reading or baseline."""
+    s = get_settings()
+    provider = ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
+    storage = get_storage()
+    fetched = 0
+    with Session(get_engine()) as db:
+        for a in db.scalars(select(Annotation)):
+            image = storage.read(a.label_ref) if a.label_ref else None
+            data = image if image is not None else (a.label_text or "").encode()
+            try:
+                if read_cached(s.extraction_cache_dir, cache_key(data, s.extraction_model)) is None:
+                    provider.extract(image=image, text=a.label_text)
+                    fetched += 1
+                plain_key = cache_key(data, s.extraction_model, PLAIN_PROMPT_VERSION)
+                if read_cached(s.extraction_cache_dir, plain_key) is None:
+                    provider.extract_plain(image=image, text=a.label_text)
+                    fetched += 1
+            except ExtractionError as e:
+                print(f"{a.title}: {e.code}")
+    print(f"Fetched {fetched} readings into {s.extraction_cache_dir}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -149,7 +164,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--email", required=True)
     p.add_argument("--name", required=True)
     sub.add_parser("import-reference").add_argument("path", type=Path)
+    v = sub.add_parser("run-validation")
+    v.add_argument("--include-drafts", action="store_true")
+    v.add_argument("--out", type=Path, help="also write the metrics as JSON to this folder")
+    sub.add_parser("fetch-readings")
     args = parser.parse_args(argv)
+    if args.cmd == "run-validation":
+        return validate(args.include_drafts, args.out)
+    if args.cmd == "fetch-readings":
+        return fetch_readings()
     if args.cmd == "create-admin":
         password = os.environ.get("ADMIN_PASSWORD") or getpass.getpass("Password: ")
         return create_admin(args.email, args.name, password)

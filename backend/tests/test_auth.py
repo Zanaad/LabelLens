@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import AuditLog, Role, User
+from app.models import AuditLog, PasswordReset, Role, User
 from tests.conftest import PASSWORD, login, make_user
 
 WRONG = secrets.token_urlsafe(16)
@@ -93,6 +93,34 @@ def test_inactive_user_cannot_log_in(client: TestClient, db: Session):
 def test_tampered_cookie_is_rejected(client: TestClient):
     client.cookies.set(get_settings().cookie_name, "not-a-jwt")
     assert client.get("/api/auth/me").status_code == 401
+
+
+def test_password_reset_by_email(client: TestClient, db: Session, monkeypatch):
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr("app.api.auth.send_email", lambda to, _s, body: sent.append((to, body)))
+    make_user(db, "arta@example.org")
+    login(client, "arta@example.org")  # an open session that the reset must end
+
+    # Same answer for unknown emails, so the form does not reveal who has an account.
+    forgot = "/api/auth/forgot-password"
+    assert client.post(forgot, json={"email": "nobody@example.org"}).status_code == 202
+    assert client.post(forgot, json={"email": "Arta@Example.org"}).status_code == 202
+    assert len(sent) == 1 and sent[0][0] == "arta@example.org"
+    token = sent[0][1].split("/reset-password#")[1].split()[0]
+    stored = db.scalar(select(PasswordReset))
+    assert stored is not None and stored.token_hash != token  # only the hash is kept
+
+    new_password = secrets.token_urlsafe(16)
+    reset = "/api/auth/reset-password"
+    short = client.post(reset, json={"token": token, "password": new_password[:5]})
+    assert short.json()["detail"] == "password_too_short"
+    assert client.post(reset, json={"token": token, "password": new_password}).status_code == 204
+    assert client.get("/api/auth/me").status_code == 401  # old session ended
+    reused = client.post(reset, json={"token": token, "password": new_password})
+    assert reused.json()["detail"] == "reset_invalid"  # one use only
+    old = client.post("/api/auth/login", json={"email": "arta@example.org", "password": PASSWORD})
+    assert old.status_code == 401
+    login(client, "arta@example.org", new_password)
 
 
 def test_auth_endpoints_are_rate_limited(client: TestClient):
