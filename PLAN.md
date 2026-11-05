@@ -46,6 +46,35 @@ nothing paid beyond the AI key. What is hardcoded or unfinished today:
 What stays as it is on purpose: the rate limit is kept in memory, which is fine with a single
 server (see Decisions, step 0).
 
+### Features to add after step 5
+
+- **Question for the manufacturer.** When a label leaves details out, the result already lists
+  what to ask. A button turns those questions into a short message the pharmacist can copy or
+  email, naming the product and batch. It is filled from a template, so it costs nothing to run.
+- **Expert corrections improve the measurements.** When an expert disagrees with a verdict, one
+  click turns that scan into a validation label draft, with the expert's verdict as the expected
+  answer. It counts only after an admin marks it Final, so the numbers stay honest.
+- **AI-assisted monograph reading (the main bet).**
+  - An admin uploads an EMA monograph PDF. Claude proposes the studied preparations (herb, plant
+    part, preparation type, ratio, solvent, evidence level), each with the passage it was read
+    from.
+  - An expert approves, edits or rejects every proposed row. Nothing reaches the reference table
+    unapproved, and approved rows are marked checked by that expert (never invented content).
+  - This answers "who fills the table?" and shows how the table grows past what a team can type.
+  - It costs a few cents per monograph in API fees. Needs the Anthropic key (see "What the team
+    has to do").
+- **MCP server (decision pending).**
+  - A small read-only tool that lets AI assistants ask LabelLens "does a studied preparation match
+    this herb and preparation?" and get the answer with its source, or "cannot say", instead of
+    inventing herbal claims.
+  - It uses the existing rules engine and the reference table only; it carries no scan, patient or
+    user data.
+  - It needs the official `mcp` library, a new dependency, so it waits for the team's approval.
+    It is only worth showing once the table has real rows.
+
+Order: real data and real label reading (step 5), then monograph reading, then the two small
+features, then the MCP server if there is time. Cut from the end first.
+
 ## What the team has to do
 
 Things I can't do for you:
