@@ -1,7 +1,8 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
-import { useScan, useVerdict, type RowStatus, type Scan, type Verdict } from "../api/scans";
+import { useScan, useVerdict, type Scan, type Verdict } from "../api/scans";
+import { ComparisonTable } from "../components/ComparisonTable";
 import {
   BookIcon,
   CloseIcon,
@@ -10,11 +11,6 @@ import {
   EditIcon,
   ExternalIcon,
   InfoIcon,
-  MatchIcon,
-  MismatchIcon,
-  NotApplicableIcon,
-  NotStatedIcon,
-  PartialIcon,
   RestartIcon,
   ShareIcon,
 } from "../components/icons";
@@ -25,14 +21,6 @@ import { t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
 
 const card = "flex min-w-0 flex-col gap-3 rounded-control border border-border bg-surface p-6";
-
-const ROW_STATUS: Record<RowStatus, { Icon: typeof MatchIcon; cls: string }> = {
-  match: { Icon: MatchIcon, cls: "font-semibold text-match-fg" },
-  partial: { Icon: PartialIcon, cls: "font-semibold text-partial-fg" },
-  mismatch: { Icon: MismatchIcon, cls: "font-semibold text-mismatch-fg" },
-  missing: { Icon: NotStatedIcon, cls: "font-semibold text-missing-fg" },
-  na: { Icon: NotApplicableIcon, cls: "text-muted" },
-};
 
 function SourceButton({ n, onOpen }: { n: number; onOpen: () => void }) {
   return (
@@ -101,7 +89,6 @@ function SourcesDrawer({ docs, highlight, onClose }: { docs: SourceDoc[]; highli
 }
 
 function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
-  const [prepIndex, setPrepIndex] = useState(0);
   const [asked, setAsked] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
   const [drawer, setDrawer] = useState<{ highlight: number | null } | null>(null);
@@ -112,7 +99,6 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
   const plant = scan.fields.plant?.value;
   const latin = verdict.plant_latin.length === 1 ? verdict.plant_latin[0] : null;
   const name = scan.product_name ?? plant ?? t("result.unnamed");
-  const prep = verdict.comparisons[prepIndex];
   const passport: ReactNode[] = [plant, latin && <span className="italic">{latin}</span>, scan.fields.preparation_type?.value].filter(
     Boolean,
   );
@@ -195,91 +181,7 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
             </ol>
           </section>
 
-          {prep && (
-            <section aria-labelledby="cmp-title" className="flex min-w-0 flex-col rounded-control border border-border bg-surface">
-              <div className="flex flex-col gap-3.5 px-6 pt-6 pb-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 id="cmp-title" className="m-0 text-xl font-semibold">
-                    {t("result.cmpTitle")}
-                  </h2>
-                  <span className="text-sm text-muted">{t("result.doseNotCompared")}</span>
-                </div>
-                <div role="group" aria-labelledby="sel-label" className="flex flex-col gap-2">
-                  <span id="sel-label" className="text-sm font-semibold text-muted">
-                    {t("result.closest")}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {verdict.comparisons.map((c, i) => (
-                      <button
-                        key={c.reference_id}
-                        type="button"
-                        aria-pressed={i === prepIndex}
-                        onClick={() => setPrepIndex(i)}
-                        className={`flex min-h-control min-w-0 flex-[1_1_220px] flex-col items-start gap-0.5 rounded-control px-3.5 py-2.5 text-left text-text ${
-                          i === prepIndex ? "border-2 border-accent bg-accent-weak" : "border border-border-2 bg-surface"
-                        }`}
-                      >
-                        <span className="text-eyebrow tracking-normal text-muted">
-                          {[i === 0 ? t("result.rankClosest") : t("result.rankAlt", { n: i }), c.evidence_level]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                        <span className="text-body-sm leading-[1.35] font-semibold">{c.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="overflow-x-auto border-t border-border">
-                <table className="w-full min-w-[640px] border-collapse text-body-sm">
-                  <caption className="px-6 py-3 text-left text-sm text-muted">
-                    {t("result.caption", { prep: [prep.name, prep.evidence_level].filter(Boolean).join(", ") })}
-                  </caption>
-                  <thead>
-                    <tr className="bg-surface-2">
-                      <th scope="col" className="w-[22%] border-b border-border px-6 py-2.5 text-left font-semibold">
-                        {t("result.colField")}
-                      </th>
-                      <th scope="col" className="border-b border-border px-4 py-2.5 text-left font-semibold">
-                        {t("result.colLabel")}
-                      </th>
-                      <th scope="col" className="border-b border-border px-4 py-2.5 text-left font-semibold">
-                        {t("result.colRef")}
-                      </th>
-                      <th scope="col" className="w-[18%] border-b border-border py-2.5 pr-6 pl-4 text-left font-semibold">
-                        {t("result.colStatus")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prep.rows.map((row) => {
-                      const s = ROW_STATUS[row.status];
-                      const missing = row.status === "missing";
-                      return (
-                        <tr key={row.field} className={missing ? "bg-missing-bg" : undefined}>
-                          <th scope="row" className="border-b border-border px-6 py-3 text-left align-top font-medium">
-                            {t(`field.${row.field}` as MessageKey)}
-                          </th>
-                          <td className={`border-b border-border px-4 py-3 align-top ${missing ? "text-missing-fg italic" : ""}`}>
-                            {row.label ?? (row.status === "na" ? t("result.notApplicable") : t("review.notStated"))}
-                          </td>
-                          <td className="border-b border-border px-4 py-3 align-top">
-                            {row.reference ?? t("result.notApplicable")}
-                          </td>
-                          <td className="border-b border-border py-3 pr-6 pl-4 align-top">
-                            <span className={`inline-flex items-center gap-1.5 ${s.cls}`}>
-                              <s.Icon size={18} />
-                              {t(`status.${row.status}`)}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+          <ComparisonTable comparisons={verdict.comparisons} />
 
           {verdict.missing.length > 0 && (
             <section aria-labelledby="miss-title" className={`${card} gap-3.5`}>

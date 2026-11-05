@@ -32,6 +32,7 @@ export function SignInPage() {
         {params.get("expired") === "1" && !login.isError && (
           <Notice tone="expired">{t("signIn.expired")}</Notice>
         )}
+        {params.get("reset") === "done" && !login.isError && <Notice>{t("signIn.resetDone")}</Notice>}
         {login.isError && (
           <Notice tone="error">{t(`error.${errorCode(login.error)}` as MessageKey)}</Notice>
         )}

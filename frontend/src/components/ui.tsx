@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { Link, type LinkProps } from "react-router-dom";
 import { t } from "../i18n";
-import { AlertIcon, ClockIcon, EyeIcon, InfoIcon } from "./icons";
+import { AlertIcon, ClockIcon, CloseIcon, EyeIcon, InfoIcon } from "./icons";
 
 const base =
   "inline-flex items-center justify-center gap-2 min-h-control rounded-control border font-sans text-base text-center no-underline disabled:opacity-60 disabled:cursor-not-allowed";
@@ -179,6 +179,47 @@ export function Steps({ current }: { current: number }) {
         })}
       </ol>
     </nav>
+  );
+}
+
+// Modal dialog: backdrop click, Escape and the close button all call onClose.
+export function Dialog({
+  title,
+  icon,
+  onClose,
+  wide = false,
+  children,
+}: {
+  title: string;
+  icon?: ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <button type="button" aria-label={t("dialog.close")} onClick={onClose} className="absolute inset-0 cursor-default border-0 bg-backdrop p-0" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={id}
+        className={`relative flex max-h-full w-full flex-col gap-4 overflow-y-auto rounded-control border border-border bg-surface p-6 ${
+          wide ? "max-w-[760px]" : "max-w-[520px]"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 id={id} className="m-0 flex items-center gap-2.5 text-xl font-semibold">
+            {icon}
+            {title}
+          </h2>
+          <Button variant="secondary" autoFocus aria-label={t("dialog.close")} onClick={onClose} className="w-11 px-0">
+            <CloseIcon />
+          </Button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 

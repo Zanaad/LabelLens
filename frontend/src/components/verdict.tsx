@@ -44,6 +44,15 @@ export const VERDICT: Record<VerdictCode, VerdictStyle> = {
   not_covered: { ...cannot, title: "verdict.notCovered", short: "verdict.notCovered" },
 };
 
+// For expert and admin forms: every verdict the engine can give, including the internal "differs".
+export const VERDICT_OPTIONS: [VerdictCode, MessageKey][] = [
+  ["matches", "verdict.matches"],
+  ["partly_matches", "verdict.partly"],
+  ["cannot_say", "verdict.cannotSay"],
+  ["not_covered", "verdict.notCovered"],
+  ["differs", "verdict.differs"],
+];
+
 // The engine returns codes; field lists become field labels, other lists are joined with "or".
 function vars(params: ResultItem["params"]) {
   return Object.fromEntries(
@@ -78,12 +87,13 @@ export function groupSources(sources: Source[]) {
   return { docs, number };
 }
 
-export function VerdictChip({ verdict }: { verdict: VerdictCode }) {
+// `internal`: expert and admin screens name "differs" instead of showing it as "cannot say".
+export function VerdictChip({ verdict, internal = false }: { verdict: VerdictCode; internal?: boolean }) {
   const v = VERDICT[verdict];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap ${v.cls}`}>
       <v.Icon size={16} />
-      {t(v.short)}
+      {internal && verdict === "differs" ? t("verdict.differs") : t(v.short)}
     </span>
   );
 }
