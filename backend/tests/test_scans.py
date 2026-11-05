@@ -1,8 +1,10 @@
 import json
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
+from urllib.error import HTTPError
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,6 +18,7 @@ from app.extraction.providers import (
     PROMPT_VERSION,
     CachedProvider,
     ExtractionError,
+    GroqProvider,
     cache_key,
     get_extraction_provider,
 )
@@ -104,6 +107,54 @@ def test_cached_provider_replays_and_reports_misses(tmp_path: Path):
     assert result.fields.plant.value == "St John's wort"
     with pytest.raises(ExtractionError, match="not_in_cache"):
         provider.extract(image=None, text="a label that was never cached")
+
+
+def test_groq_reads_text_and_photo_with_strict_schema(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    calls = []
+    output = extraction()
+
+    def reply(request, timeout):
+        calls.append((request, timeout))
+        return BytesIO(json.dumps({"choices": [{"message": {
+            "content": json.dumps(output)
+        }}]}).encode())
+
+    monkeypatch.setattr(providers, "urlopen", reply)
+    provider = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
+    text_result = provider.extract(image=None, text=LABEL)
+    photo_result = provider.extract(image=b"photo bytes", text=None)
+    assert text_result.fields.plant.value == "St John's wort"
+    assert text_result.provider == photo_result.provider == "groq"
+    assert (tmp_path / f"{text_result.cache_key}.json").is_file()
+    text_body = json.loads(calls[0][0].data)
+    image_body = json.loads(calls[1][0].data)
+    assert text_body["response_format"]["json_schema"]["strict"] is True
+    assert text_body["response_format"]["json_schema"]["schema"]["required"] == list(output)
+    assert text_body["messages"][0]["content"][1]["text"].startswith("<label_text>")
+    assert image_body["messages"][0]["content"][1]["image_url"]["url"].startswith(
+        "data:image/jpeg;base64,"
+    )
+    assert all(timeout == 120 for _, timeout in calls)
+
+
+def test_groq_reports_missing_key_quota_and_bad_output(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    with pytest.raises(ExtractionError, match="provider_misconfigured"):
+        GroqProvider("qwen/qwen3.8-27b", "", tmp_path).extract(image=None, text=LABEL)
+
+    def rejected(request, timeout):
+        raise HTTPError(request.full_url, 429, "quota", {}, None)
+
+    monkeypatch.setattr(providers, "urlopen", rejected)
+    provider = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
+    with pytest.raises(ExtractionError, match="provider_unavailable"):
+        provider.extract(image=None, text=LABEL)
+    monkeypatch.setattr(providers, "urlopen", lambda request, timeout: BytesIO(b'{}'))
+    with pytest.raises(ExtractionError, match="extraction_failed"):
+        provider.extract(image=None, text=LABEL)
 
 
 def test_text_scan_flow_with_corrections(client: TestClient, db: Session, setup):

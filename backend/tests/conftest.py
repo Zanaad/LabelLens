@@ -5,6 +5,7 @@ import secrets
 from collections.abc import Iterator
 
 os.environ.setdefault("APP_ENV", "test")
+os.environ["EXTRACTION_PROVIDER"] = "cached"
 os.environ.setdefault("JWT_SECRET", secrets.token_urlsafe(32))
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 

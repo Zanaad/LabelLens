@@ -1,5 +1,5 @@
 # Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), import-reference
-# (upsert from JSON), run-validation (same as Validation -> Run) and fetch-readings (paid API).
+# (upsert from JSON), run-validation (same as Validation -> Run) and fetch-readings (live API).
 
 import argparse
 import getpass
@@ -20,6 +20,7 @@ from app.extraction.providers import (
     PLAIN_PROMPT_VERSION,
     ClaudeProvider,
     ExtractionError,
+    GroqProvider,
     cache_key,
     read_cached,
 )
@@ -134,9 +135,15 @@ def validate(include_drafts: bool, out: Path | None) -> int:
 
 
 def fetch_readings() -> int:
-    """Calls the Claude API (costs money) for labels without a saved reading or baseline."""
+    """Fetches unsaved readings and baselines with the configured live provider."""
     s = get_settings()
-    provider = ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
+    if s.extraction_provider == "groq":
+        provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
+    elif s.extraction_provider == "claude":
+        provider = ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
+    else:
+        print("Set EXTRACTION_PROVIDER to groq or claude before fetching readings.")
+        return 1
     storage = get_storage()
     fetched = 0
     with Session(get_engine()) as db:
@@ -144,10 +151,10 @@ def fetch_readings() -> int:
             image = storage.read(a.label_ref) if a.label_ref else None
             data = image if image is not None else (a.label_text or "").encode()
             try:
-                if read_cached(s.extraction_cache_dir, cache_key(data, s.extraction_model)) is None:
+                if read_cached(s.extraction_cache_dir, cache_key(data, provider.model)) is None:
                     provider.extract(image=image, text=a.label_text)
                     fetched += 1
-                plain_key = cache_key(data, s.extraction_model, PLAIN_PROMPT_VERSION)
+                plain_key = cache_key(data, provider.model, PLAIN_PROMPT_VERSION)
                 if read_cached(s.extraction_cache_dir, plain_key) is None:
                     provider.extract_plain(image=image, text=a.label_text)
                     fetched += 1

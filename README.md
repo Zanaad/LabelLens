@@ -70,6 +70,19 @@ By default (`EXTRACTION_PROVIDER=cached`) LabelLens replays saved readings from
 `data/extraction_cache/`, so it runs without an API key or cost. In this mode only the three
 example labels on the Scan page can be read; their saved readings are hand-written fixtures.
 
+To read new label photos or pasted text with Groq's free API, create a key at
+[GroqCloud](https://console.groq.com/keys), then set these in `.env`:
+
+```bash
+EXTRACTION_PROVIDER=groq
+GROQ_MODEL=qwen/qwen3.8-27b
+GROQ_API_KEY=                  # your private GroqCloud key
+```
+
+Run `docker compose up -d --build backend`. Keep the key only in `.env`, not `.env.example`.
+Groq's free tier has rate limits; check your account's limits before a demo. No paid tier is
+selected automatically. Do not scan labels containing patient or personal information.
+
 To read real labels with Claude, set these in `.env` and restart:
 
 ```bash
@@ -170,8 +183,8 @@ Validation measures how often LabelLens is right on labels whose correct answers
    numbers come with a 95% confidence range.
 
 Labels without a saved reading are left out of the field and end-to-end numbers. With an API key
-in `EXTRACTION_API_KEY`, `python -m app.cli fetch-readings` reads them (and the plain-prompt
-baseline) through the paid Claude API; the readings are saved for later runs.
+with the configured live provider, `python -m app.cli fetch-readings` reads them (and the
+plain-prompt baseline) through Groq or Claude; the readings are saved for later runs.
 
 Every number used in the pitch must come from a stored run over Final labels.
 

@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 import anthropic
 from anthropic.types.beta import BetaContentBlockParam
@@ -185,8 +187,139 @@ class ClaudeProvider:
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False))
 
 
+def _groq_schema(schema: type[Schema]) -> dict[str, Any]:
+    if schema is PlainLabelExtraction:
+        names = list(PlainLabelExtraction.model_fields)
+        return {
+            "type": "object",
+            "properties": {name: {"type": ["string", "null"]} for name in names},
+            "required": names,
+            "additionalProperties": False,
+        }
+    field = {
+        "type": "object",
+        "properties": {
+            "value": {"type": ["string", "null"]},
+            "status": {"type": "string", "enum": ["stated", "not_stated", "unreadable"]},
+            "confidence": {"type": "number"},
+            "evidence": {"type": ["string", "null"]},
+        },
+        "required": ["value", "status", "confidence", "evidence"],
+        "additionalProperties": False,
+    }
+    names = list(LabelExtraction.model_fields)
+    return {
+        "type": "object",
+        "properties": {
+            "label_readable": {"type": "boolean"},
+            "is_herbal_product": {"type": "boolean"},
+            "product_name": {"type": ["string", "null"]},
+            **{name: field for name in names[3:]},
+        },
+        "required": names,
+        "additionalProperties": False,
+    }
+
+
+class GroqProvider:
+    name = "groq"
+
+    def __init__(self, model: str, api_key: str, cache_dir: str | Path):
+        self.model = model
+        self.api_key = api_key
+        self.cache_dir = Path(cache_dir)
+
+    def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
+        key = cache_key(_input_bytes(image, text), self.model)
+        started = time.monotonic()
+        fields = self._parse(image, text, PROMPT, LabelExtraction)
+        output = fields.model_dump(mode="json")
+        self._save(key, PROMPT_VERSION, output)
+        return ExtractionResult(
+            output, fields, self.name, self.model, key, int((time.monotonic() - started) * 1000)
+        )
+
+    def extract_plain(self, *, image: bytes | None, text: str | None) -> dict[str, Any]:
+        key = cache_key(_input_bytes(image, text), self.model, PLAIN_PROMPT_VERSION)
+        output = self._parse(image, text, PLAIN_PROMPT, PlainLabelExtraction).model_dump()
+        self._save(key, PLAIN_PROMPT_VERSION, output)
+        return output
+
+    def _parse(
+        self, image: bytes | None, text: str | None, prompt: str, schema: type[Schema]
+    ) -> Schema:
+        if not self.api_key:
+            raise ExtractionError("provider_misconfigured")
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+        if image is not None:
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
+                },
+            })
+        else:
+            content.append({"type": "text", "text": f"<label_text>\n{text}\n</label_text>"})
+        body = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": content}],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "label_extraction",
+                    "strict": True,
+                    "schema": _groq_schema(schema),
+                },
+            },
+            "max_completion_tokens": 4096,
+        }
+        request = Request(  # noqa: S310 - fixed HTTPS endpoint
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+                "User-Agent": "LabelLens/0.1 (+https://github.com/Zanaad/LabelLens)",
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=120) as response:  # noqa: S310 - fixed HTTPS endpoint
+                result = json.load(response)
+        except HTTPError as exc:
+            code = (
+                "provider_misconfigured"
+                if exc.code in (401, 403, 404)
+                else "provider_unavailable"
+            )
+            raise ExtractionError(code) from None
+        except (URLError, TimeoutError):
+            raise ExtractionError("provider_unavailable") from None
+        except (ValueError, TypeError):
+            raise ExtractionError("extraction_failed") from None
+        try:
+            raw = json.loads(result["choices"][0]["message"]["content"])
+            return schema.model_validate(raw)
+        except (KeyError, IndexError, TypeError, ValueError):
+            raise ExtractionError("extraction_failed") from None
+
+    def _save(self, key: str, prompt_version: str, output: dict[str, Any]) -> None:
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        record = {
+            "provider": self.name,
+            "model": self.model,
+            "prompt_version": prompt_version,
+            "output": output,
+        }
+        (self.cache_dir / f"{key}.json").write_text(
+            json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
+
 def get_extraction_provider() -> ExtractionProvider:
     s = get_settings()
     if s.extraction_provider == "claude":
         return ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
+    if s.extraction_provider == "groq":
+        return GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
     return CachedProvider(s.extraction_model, s.extraction_cache_dir)

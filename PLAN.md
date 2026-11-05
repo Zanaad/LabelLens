@@ -36,7 +36,7 @@ nothing paid beyond the AI key. What is hardcoded or unfinished today:
 | Gap | Today | Planned fix |
 | --- | --- | --- |
 | Studied preparations | 7 source-linked EMA draft rows in `ema-draft.json`; all await expert review | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
-| Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
+| Label reading | Demo mode replays 3 hand-written readings; Groq and Claude providers can read new photos or text | Configure a live key, then validate with real labels |
 | Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
 | Pages without content | Methods page implemented; About and Settings remain placeholders | Write them: how it works and its limits, and account settings (change password) |
 | Fonts | Loaded from Google Fonts | Hosted by us (no visitor data sent to Google) |
@@ -81,7 +81,8 @@ Things I can't do for you:
 
 1. **Anthropic API key and budget.** Create an account at console.anthropic.com, add a small
    amount of credit, set a monthly spending limit, create a key, and put it in `.env` as
-   `EXTRACTION_API_KEY` (never in Git). Without it only the three demo labels can be read.
+   `EXTRACTION_API_KEY` (never in Git). Alternatively, create a Groq free-tier key and set
+   `EXTRACTION_PROVIDER=groq` with `GROQ_API_KEY`.
 2. **Gmail app password** for password-reset emails (see README, "Email").
 3. **The mentor:** confirms the reference rows against the monographs, and sets the expected
    verdict for the validation labels.
@@ -98,12 +99,14 @@ Things I can't do for you:
 
 ## How label reading works
 
-There are two modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
+There are three modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
 
 - **Demo mode (`cached`, the default).** No AI call and no cost. The app replays saved readings
   from `data/extraction_cache/`. Right now only the three example labels on the Scan page have
   saved readings, so uploading a real photo shows a "demo mode" message.
-- **Real mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
+- **Groq mode (`groq`).** The photo or text is sent to the Groq-hosted Qwen vision model. Set
+  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier.
+- **Claude mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
   label. This needs an **Anthropic API key** (a paid key from console.anthropic.com) in
   `EXTRACTION_API_KEY`. Every reading is saved, so it can be replayed later for free.
 
@@ -144,6 +147,14 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 - Refined shared navigation, typography, controls, tables and authentication layouts. Desktop uses a two-row top navigation; mobile uses a compact menu. Existing role permissions remain. Warm neutral surfaces and restrained teal accents use the existing light/dark tokens. No new dependencies.
 
+
+### Step 5 Groq reading (6 Nov)
+
+- Added an optional Groq provider for text and JPEG labels, with strict structured output
+  using the existing extraction fields and cache. The default model is `qwen/qwen3.8-27b`.
+- The API key stays in the backend environment as `GROQ_API_KEY`. The team must create a
+  GroqCloud free-tier key and check its rate limits. No live call was made without a key.
+- Live accuracy still needs expert-reviewed labels and a stored validation run.
 
 ### Step 5 data work (5 Nov)
 
@@ -193,7 +204,7 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
   - Each run stores a copy of the exact answers it was scored against, so pitch numbers can be
     traced back.
   - The plain-prompt baseline needs its own saved readings:
-    `python -m app.cli fetch-readings` creates them, which calls the paid API.
+    `python -m app.cli fetch-readings` creates them with the configured live API.
   - This replaces the planned `validation/run_validation.py` script: one code path, used by both
     the page and the command line.
 - **Charts** use Recharts (agreed), loaded only on the Validation page so other pages stay fast.
