@@ -9,18 +9,18 @@ import { Eyebrow } from "./ui";
 /** Sign-in / register layout: form card on the left, explainer aside on the right. */
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="ll-auth flex min-h-screen flex-col">
       <header className="no-print border-b border-border bg-surface">
         <div className="mx-auto flex max-w-shell flex-wrap items-center justify-between gap-x-5 gap-y-2 px-6 py-2.5">
           <Brand />
           <ThemeToggle />
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-auth flex-[1_0_auto] flex-wrap items-start justify-center gap-x-16 gap-y-10 px-6 pt-12 pb-16">
-        <section className="flex min-w-0 max-w-card flex-[1_1_400px] flex-col gap-[18px] rounded-control border border-border bg-surface p-8">
+      <main className="ll-auth-main mx-auto flex w-full max-w-auth flex-[1_0_auto] flex-wrap items-start justify-center gap-x-16 gap-y-10 px-6 pt-12 pb-16">
+        <section className="ll-auth-card flex min-w-0 max-w-card flex-[1_1_400px] flex-col gap-[18px] rounded-control border border-border bg-surface p-8">
           {children}
         </section>
-        <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-[18px] py-2">
+        <aside className="ll-auth-aside flex min-w-0 flex-[1_1_340px] flex-col gap-[18px] py-2">
           <Eyebrow>{t("authAside.eyebrow")}</Eyebrow>
           <h2 className="m-0 max-w-[22ch] text-h1 leading-[1.25] font-semibold">{t("authAside.heading")}</h2>
           <ol className="m-0 flex list-none flex-col gap-3.5 p-0">

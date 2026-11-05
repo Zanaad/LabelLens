@@ -140,6 +140,11 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ## Decisions made
 
+### Shared interface refresh
+
+- Refined shared navigation, typography, controls, tables and authentication layouts. Desktop uses a two-row top navigation; mobile uses a compact menu. Existing role permissions remain. Warm neutral surfaces and restrained teal accents use the existing light/dark tokens. No new dependencies.
+
+
 ### Step 5 data work (5 Nov)
 
 - Added `data/reference/ema-draft.json`: seven preparations across Hypericum, Ginkgo and Matricaria, transcribed from final EMA monographs with document identifiers and page/section locators. All remain `verified=false`.
