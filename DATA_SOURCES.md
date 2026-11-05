@@ -19,9 +19,11 @@ reference row checked by our pharmacognosy mentor, before results are shown as a
 - Common names (English and the languages found on labels) mapped to Latin names.
 - **Source:** TODO(team). Rows stay `verified=false` until checked.
 
-## Label images (`data/labels/`)
+## Validation label photos (Admin → Validation labels)
 
-- Photos of herbal product labels taken by the team. TODO(team): note where products were
+- Photos of herbal product labels taken by the team, uploaded in the app and stored in its upload
+  storage (not in the repository). Each validation run keeps a copy of the correct answers it was
+  scored against. TODO(team): note where products were
   photographed, and confirm that images contain no personal data (no prescriptions, receipts or
   patient names).
 - **Licence:** TODO(team) (suggest CC BY 4.0 for our own photos).

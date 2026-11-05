@@ -20,7 +20,8 @@ Read PLAN.md for phases, decisions, design notes and open questions.
   Store `prompt_version`, provider and model with every extraction.
 - **Rules engine** (`backend/app/rules`): pure Python, no FastAPI/SQLAlchemy imports, versioned,
   fully unit-tested, `TODO(expert)` where judgement is needed.
-- **Pitch numbers** come only from `validation/run_validation.py` output.
+- **Pitch numbers** come only from stored validation runs (Validation page or
+  `python -m app.cli run-validation`) over labels marked Final, quoted with their 95% range.
 - Ask before big decisions or new dependencies not in PLAN.md; otherwise decide and note the
   assumption in PLAN.md.
 - If the design (docs/design/) conflicts with these rules, raise it; don't silently pick.
