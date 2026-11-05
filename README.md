@@ -20,6 +20,20 @@ Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: ear
 development (scan, review, result, scan history, patient share links, printable summary, expert
 review, admin pages and validation work; reference data is a sample).
 
+## What LabelLens does, in plain words
+
+Studies say a herb helped, but only for the exact preparation they tested: a given plant part,
+extract type, extract ratio and solvent. A shop product that just says "St John's wort" may be a
+different preparation, so the evidence may not apply to it.
+
+1. **Read:** the app copies what the label says (plant, plant part, preparation, ratio, solvent)
+   and the pharmacist fixes any mistake.
+2. **Compare:** it checks those facts against the studied preparations in the EU monographs.
+3. **Answer:** matches, partly matches, or cannot say, plus what the label leaves out and what to
+   ask the manufacturer, with a source for every claim.
+
+Reading the label is only the first step. The value is in the comparison.
+
 ## Quick start (Docker)
 
 Requirements: Docker with Compose v2.

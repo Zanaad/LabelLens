@@ -22,10 +22,50 @@ product is "safe", never gives dosing advice, and never treats missing informati
 | 1 | Upload a label photo or paste its text, the AI reads it, the pharmacist checks each field, onboarding | **Done**  |
 | 2 | Comparison rules, table of studied preparations, result screen (verdict, what's missing, sources) | **Done**  |
 | 3 | My scans, scan detail, share link for patients, printable summary (compare postponed) | **Done** |
-| 4 | Expert review queue, admin pages, validation labels and runs, password reset by email | **Done** (ready to commit) |
-| 5 | Polish, demo data, final numbers for the pitch | Next |
+| 4 | Expert review queue, admin pages, validation labels and runs, password reset by email | **Done** |
+| 5 | Make it real: real data, real label reading, nothing demo-only, running on one EC2 server | Next |
+| 6 | Polish, demo data, final numbers for the pitch | After 5 |
 
-Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5 and rehearsal, weekend as buffer.
+Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5, weekend step 6 and rehearsal.
+
+## What is left (steps 5 and 6)
+
+The goal of step 5 is an app that works for real users, with no hardcoded demo shortcuts and
+nothing paid beyond the AI key. What is hardcoded or unfinished today:
+
+| Gap | Today | Planned fix |
+| --- | --- | --- |
+| Studied preparations | 7 placeholder rows copied from the design | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
+| Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
+| Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
+| Pages without content | About, Methods and Settings are placeholders | Write them: how it works and its limits, and account settings (change password) |
+| Fonts | Loaded from Google Fonts | Hosted by us (no visitor data sent to Google) |
+| Running it | Compose is set up for a laptop, ports only on localhost | One EC2 server: HTTPS with a free certificate, restart on reboot, database backups |
+| Real numbers | 3 test labels | 30–50 labels annotated by an expert, then a stored validation run |
+
+What stays as it is on purpose: the rate limit is kept in memory, which is fine with a single
+server (see Decisions, step 0).
+
+## What the team has to do
+
+Things I can't do for you:
+
+1. **Anthropic API key and budget.** Create an account at console.anthropic.com, add a small
+   amount of credit, set a monthly spending limit, create a key, and put it in `.env` as
+   `EXTRACTION_API_KEY` (never in Git). Without it only the three demo labels can be read.
+2. **Gmail app password** for password-reset emails (see README, "Email").
+3. **The mentor:** confirms the reference rows against the monographs, and sets the expected
+   verdict for the validation labels.
+4. **Validation labels:** someone photographs 30–50 herbal product labels (no personal data in the
+   photos) and uploads them under Admin → Validation labels.
+5. **AWS:** one EC2 instance (at least 2 GB of memory is my guess, since the images are built on
+   it), with ports 80 and 443 open to everyone and SSH only from your own address. Check the
+   current price of a public IP address on your account.
+6. **A domain name** for HTTPS. A free one from a service like DuckDNS is enough; the certificate
+   is free from Let's Encrypt. Without HTTPS the sign-in cookie can't be marked secure, and the
+   app refuses to start in production without that.
+7. **EMA reuse terms:** someone reads EMA's legal notice (or asks EMA) before the reference data
+   is published, and fills in the licence line in DATA_SOURCES.md.
 
 ## How label reading works
 
