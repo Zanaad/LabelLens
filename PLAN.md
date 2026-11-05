@@ -38,7 +38,7 @@ nothing paid beyond the AI key. What is hardcoded or unfinished today:
 | Studied preparations | 7 source-linked EMA draft rows in `ema-draft.json`; all await expert review | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
 | Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
 | Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
-| Pages without content | About, Methods and Settings are placeholders | Write them: how it works and its limits, and account settings (change password) |
+| Pages without content | Methods page implemented; About and Settings remain placeholders | Write them: how it works and its limits, and account settings (change password) |
 | Fonts | Loaded from Google Fonts | Hosted by us (no visitor data sent to Google) |
 | Running it | Compose is set up for a laptop, ports only on localhost | One EC2 server: HTTPS with a free certificate, restart on reboot, database backups |
 | Real numbers | 3 test labels | 30–50 labels annotated by an expert, then a stored validation run |
