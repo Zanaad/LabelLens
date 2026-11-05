@@ -1,17 +1,21 @@
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { User } from "../api/auth";
+import { FIELD_KEYS } from "../api/scans";
 import { App } from "./App";
+
+const NOW = new Date().toISOString();
 
 const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null };
 const expert: User = { ...pharmacist, id: "2", email: "besim@example.org", full_name: "Besim Hoxha", role: "expert" };
 
-// Generated per run so no password literal is ever committed.
+// Generated per run so no password or token literal is ever committed.
 const PASSWORD = crypto.randomUUID();
+const SHARE_TOKEN = crypto.randomUUID();
 
 type Reply = { status: number; body?: unknown } | undefined;
 
@@ -19,7 +23,8 @@ type Reply = { status: number; body?: unknown } | undefined;
 function mockApi(me: User | null, handler?: (url: string) => Reply) {
   const fn = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) => {
     const res = handler?.(url) ?? (url === "/api/auth/me" && me ? { status: 200, body: me } : { status: 401 });
-    return new Response(JSON.stringify(res.body ?? {}), { status: res.status, headers: { "Content-Type": "application/json" } });
+    const body = res.status === 204 ? null : JSON.stringify(res.body ?? {}); // 204 must not have a body
+    return new Response(body, { status: res.status, headers: { "Content-Type": "application/json" } });
   });
   vi.stubGlobal("fetch", fn);
   return fn;
@@ -37,7 +42,7 @@ function renderApp(path: string) {
 }
 
 function sentBody(fetchMock: ReturnType<typeof mockApi>, url: string) {
-  const call = fetchMock.mock.calls.find(([u]) => u === url)!;
+  const call = fetchMock.mock.calls.find(([u, init]) => u === url && init?.body)!; // skips GETs
   return JSON.parse(call[1]!.body as string);
 }
 
@@ -212,5 +217,180 @@ describe("result", () => {
     );
     renderApp("/scans/s1/result");
     expect(await screen.findByRole("heading", { level: 1, name: "Review extracted fields" })).toBeInTheDocument();
+  });
+});
+
+describe("history and sharing", () => {
+  const now = new Date().toISOString();
+  const row = { created_at: now, status: "checked", missing: 0 };
+  const list = [
+    { ...row, id: "a1", product_name: "MEADOW CUP", plant: "chamomile", verdict: "partly_matches", missing: 2 },
+    { ...row, id: "b2", product_name: "GINKGOVITA 120", plant: "Ginkgo biloba", verdict: "matches" },
+  ];
+
+  it("filters my scans by verdict", async () => {
+    mockApi(pharmacist, (url) => (url === "/api/scans" ? { status: 200, body: list } : undefined));
+    renderApp("/scans");
+    expect(await screen.findByText("2 of 2 scans shown")).toBeInTheDocument();
+    await userEvent.setup().selectOptions(screen.getByLabelText("Verdict"), "matches");
+    expect(screen.getByText("1 of 2 scans shown")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "MEADOW CUP" })).not.toBeInTheDocument();
+  });
+
+  it("saves corrections on the scan detail page and checks again", async () => {
+    const fetchMock = mockApi(pharmacist, (url) =>
+      url === "/api/scans/s1" || url === "/api/scans/s1/fields"
+        ? { status: 200, body: scan }
+        : url === "/api/scans/s1/verdict"
+          ? { status: 200, body: verdict }
+          : url === "/api/scans/s1/history"
+            ? { status: 200, body: { corrections: [], activity: [], shares: [] } }
+            : undefined,
+    );
+    renderApp("/scans/s1");
+    const user = userEvent.setup();
+    const plant = await screen.findByLabelText("Plant");
+    await user.clear(plant);
+    await user.type(plant, "German chamomile");
+    expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save and re-check" }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([u, init]) => u === "/api/scans/s1/verdict" && init?.method === "POST")).toBe(true),
+    );
+    expect(sentBody(fetchMock, "/api/scans/s1/fields")).toEqual({ fields: { plant: "German chamomile" } });
+  });
+
+  it("shows a shared result in plain language without signing in", async () => {
+    const shared = {
+      product_name: "MEADOW CUP",
+      plant: "chamomile",
+      verdict: "partly_matches",
+      shared_by: "Arta Krasniqi",
+      organisation: "City Pharmacy",
+      shared_at: now,
+      expires_at: now,
+    };
+    const fetchMock = mockApi(null, (url) => (url === "/api/shared" ? { status: 200, body: shared } : undefined));
+    renderApp(`/p#${SHARE_TOKEN}`);
+    const head = "The label partly matches the kind of chamomile preparation that was studied.";
+    expect(await screen.findByRole("heading", { level: 2, name: head })).toBeInTheDocument();
+    expect(screen.getByText(/Arta Krasniqi, City Pharmacy/)).toBeInTheDocument();
+    expect(sentBody(fetchMock, "/api/shared")).toEqual({ token: SHARE_TOKEN });
+  });
+
+  it("explains an expired or revoked patient link", async () => {
+    mockApi(null, (url) => (url === "/api/shared" ? { status: 404, body: { detail: "share_invalid" } } : undefined));
+    renderApp(`/p#${SHARE_TOKEN}`);
+    expect(await screen.findByRole("heading", { name: "This link is not valid" })).toBeInTheDocument();
+  });
+});
+
+describe("password reset", () => {
+  it("asks for a link without saying whether the account exists", async () => {
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/forgot-password" ? { status: 202 } : undefined));
+    renderApp("/forgot-password");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Email"), "arta@example.org");
+    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(await screen.findByText(/If an account exists for arta@example.org/)).toBeInTheDocument();
+    expect(sentBody(fetchMock, "/api/auth/forgot-password")).toEqual({ email: "arta@example.org" });
+  });
+
+  it("sets a new password from the link and returns to sign in", async () => {
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/reset-password" ? { status: 204 } : undefined));
+    renderApp(`/reset-password#${SHARE_TOKEN}`);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("New password"), PASSWORD);
+    await user.type(screen.getByLabelText("Repeat the new password"), `${PASSWORD}x`);
+    await user.click(screen.getByRole("button", { name: "Save new password" }));
+    expect(screen.getByText("The two passwords are not the same.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Repeat the new password"));
+    await user.type(screen.getByLabelText("Repeat the new password"), PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Save new password" }));
+    expect(await screen.findByText(/Your password was changed/)).toBeInTheDocument();
+    expect(sentBody(fetchMock, "/api/auth/reset-password")).toEqual({ token: SHARE_TOKEN, password: PASSWORD });
+  });
+});
+
+describe("expert and admin", () => {
+  const admin: User = { ...pharmacist, id: "3", email: "admin@example.org", full_name: "Dita Admin", role: "admin" };
+  const review = { verdict, product_name: "MEADOW CUP", label_text: "MEADOW CUP", has_image: false, fields: scan.fields, my_rating: null };
+
+  it("asks the expert for the right verdict when they disagree", async () => {
+    const fetchMock = mockApi(expert, (url) =>
+      url === "/api/reviews/v1" ? { status: 200, body: review } : url === "/api/reviews" ? { status: 200, body: [] } : undefined,
+    );
+    renderApp("/review/v1");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("radio", { name: "Disagree" }));
+    const choose = screen.getByLabelText("What should the verdict be?");
+    expect(within(choose).queryByRole("option", { name: "Partly matches" })).not.toBeInTheDocument(); // the app's own verdict
+    await user.selectOptions(choose, "matches");
+    await user.click(screen.getByRole("button", { name: "Save review" }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u, init]) => u === "/api/reviews/v1" && init?.method === "PUT")).toBe(true));
+    expect(sentBody(fetchMock, "/api/reviews/v1")).toEqual({ rating: "disagree", correct_verdict: "matches", reason: null });
+  });
+
+  it("lets only admins edit the reference table", async () => {
+    const reference = {
+      preparations: [
+        {
+          id: "p1",
+          herb_latin: "Matricaria recutita L.",
+          plant_part: "Flower",
+          preparation_type: "Herbal tea",
+          extract_ratio_min: null,
+          extract_ratio_max: null,
+          solvent_type: null,
+          solvent_strength: null,
+          evidence_level: "Traditional use",
+          source_doc: null,
+          source_section: null,
+          source_url: null,
+          verified: false,
+          notes: "TODO(expert): check",
+          updated_at: NOW,
+        },
+      ],
+      plant_names: [],
+    };
+    mockApi(expert, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
+    renderApp("/reference");
+    expect(await screen.findByText("Matricaria recutita L.")).toBeInTheDocument();
+    expect(screen.getByText("Sample, not checked")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Herbal tea" })).not.toBeInTheDocument();
+    cleanup();
+    mockApi(admin, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
+    renderApp("/reference");
+    expect(await screen.findByRole("button", { name: "Edit Herbal tea" })).toBeInTheDocument();
+  });
+
+  it("shows validation numbers with their uncertainty and a table view", async () => {
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    const rate = (correct: number, total: number) => ({ correct, total, accuracy: correct / total, ci: [0.2, 0.9], confusion: {} });
+    const field = { ...rate(4, 5), wrong: 0, missed: 1, invented: 0 };
+    const metrics = {
+      versions: { rules: "0.1.0", prompt: "p1", plain_prompt: "pp1", model: "m" },
+      dataset: { labels: 5, with_expected_verdict: 5, read: 5, not_read: [], include_drafts: false },
+      fields: Object.fromEntries(FIELD_KEYS.map((k) => [k, field])),
+      verdicts: { rules_only: rate(4, 5), end_to_end: rate(3, 5) },
+      baselines: { keyword: rate(1, 5), plain_model: { ...rate(2, 5), fields: {} } },
+      expert_ratings: { ...rate(0, 0), accuracy: null, ci: null, agree: 0, disagree: 0, unsure: 0 },
+      failures: [],
+    };
+    const run = { id: "r1", created_at: NOW, rules_version: "0.1.0", prompt_version: "p1", dataset_size: 5, include_drafts: false, end_to_end: 0.6, rules_only: 0.8 };
+    mockApi(pharmacist, (url) =>
+      url === "/api/validation/runs"
+        ? { status: 200, body: [run] }
+        : url === "/api/validation/runs/r1"
+          ? { status: 200, body: { ...run, started_by: "Dita Admin", metrics } }
+          : undefined,
+    );
+    renderApp("/validation");
+    expect(await screen.findByText("Only 5 labels have an expected verdict", { exact: false })).toBeInTheDocument();
+    const methods = screen.getByRole("region", { name: "LabelLens compared with simpler approaches" });
+    expect(within(methods).getByRole("rowheader", { name: "Keyword match (herb named means evidence applies)" })).toBeInTheDocument();
+    expect(within(methods).getAllByText("20% · 1 of 5").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Run validation" })).not.toBeInTheDocument(); // admins only
   });
 });

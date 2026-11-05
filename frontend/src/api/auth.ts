@@ -91,6 +91,20 @@ export function useCreateInvitation() {
   });
 }
 
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (email: string) => api<void>("/api/auth/forgot-password", { method: "POST", json: { email } }),
+  });
+}
+
+// The token comes from the link's fragment (/reset-password#<token>), never from the server.
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (body: { token: string; password: string }) =>
+      api<void>("/api/auth/reset-password", { method: "POST", json: body }),
+  });
+}
+
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({

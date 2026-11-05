@@ -7,6 +7,7 @@ import { Brand } from "./Brand";
 import { Footer } from "./Footer";
 import { DisclaimerPill, ThemeToggle } from "./HeaderControls";
 import { CapsuleIcon, KeyIcon, MenuIcon, ReviewIcon, SettingsIcon, SignOutIcon } from "./icons";
+import { initials } from "./ui";
 
 const ROLE_ICONS = { pharmacist: CapsuleIcon, expert: ReviewIcon, admin: KeyIcon } as const;
 
@@ -18,15 +19,6 @@ function RoleBadge({ role }: { role: Role }) {
       {t(`role.${role}`)}
     </span>
   );
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join("");
 }
 
 function AccountMenu({ user }: { user: User }) {

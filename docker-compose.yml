@@ -30,10 +30,18 @@ services:
       EXTRACTION_MODEL: ${EXTRACTION_MODEL:-claude-opus-5-5}
       EXTRACTION_API_KEY: ${EXTRACTION_API_KEY:-}
       EXTRACTION_CACHE_DIR: /data/extraction_cache
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURITY: ${SMTP_SECURITY:-starttls}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: "${SMTP_FROM:-LabelLens <no-reply@labellens.local>}"
     volumes:
       - uploads:/data/storage
       - ./data/extraction_cache:/data/extraction_cache
       - ./data/reference:/data/reference:ro
+      - ./validation/results:/validation/results
     depends_on:
       db:
         condition: service_healthy

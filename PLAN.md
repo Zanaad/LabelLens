@@ -19,13 +19,53 @@ product is "safe", never gives dosing advice, and never treats missing informati
 | Step | What it includes | Status |
 | --- | --- | --- |
 | 0 | Project setup, accounts and login, roles (pharmacist, expert, admin), page layout, design colours | **Done** |
-| 1 | Upload a label photo or paste its text, the AI reads it, the pharmacist checks each field, onboarding | **Done** (PR open) |
-| 2 | Comparison rules, table of studied preparations, result screen (verdict, what's missing, sources) | **Done** (ready to commit) |
-| 3 | My scans, scan detail, compare two products, share link for patients, printable summary | Next |
-| 4 | Expert review queue, admin pages, accuracy testing page | |
-| 5 | Polish, demo data, final numbers for the pitch | |
+| 1 | Upload a label photo or paste its text, the AI reads it, the pharmacist checks each field, onboarding | **Done**  |
+| 2 | Comparison rules, table of studied preparations, result screen (verdict, what's missing, sources) | **Done**  |
+| 3 | My scans, scan detail, share link for patients, printable summary (compare postponed) | **Done** |
+| 4 | Expert review queue, admin pages, validation labels and runs, password reset by email | **Done** |
+| 5 | Make it real: real data, real label reading, nothing demo-only, running on one EC2 server | Next |
+| 6 | Polish, demo data, final numbers for the pitch | After 5 |
 
-Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5 and rehearsal, weekend as buffer.
+Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5, weekend step 6 and rehearsal.
+
+## What is left (steps 5 and 6)
+
+The goal of step 5 is an app that works for real users, with no hardcoded demo shortcuts and
+nothing paid beyond the AI key. What is hardcoded or unfinished today:
+
+| Gap | Today | Planned fix |
+| --- | --- | --- |
+| Studied preparations | 7 placeholder rows copied from the design | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
+| Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
+| Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
+| Pages without content | About, Methods and Settings are placeholders | Write them: how it works and its limits, and account settings (change password) |
+| Fonts | Loaded from Google Fonts | Hosted by us (no visitor data sent to Google) |
+| Running it | Compose is set up for a laptop, ports only on localhost | One EC2 server: HTTPS with a free certificate, restart on reboot, database backups |
+| Real numbers | 3 test labels | 30–50 labels annotated by an expert, then a stored validation run |
+
+What stays as it is on purpose: the rate limit is kept in memory, which is fine with a single
+server (see Decisions, step 0).
+
+## What the team has to do
+
+Things I can't do for you:
+
+1. **Anthropic API key and budget.** Create an account at console.anthropic.com, add a small
+   amount of credit, set a monthly spending limit, create a key, and put it in `.env` as
+   `EXTRACTION_API_KEY` (never in Git). Without it only the three demo labels can be read.
+2. **Gmail app password** for password-reset emails (see README, "Email").
+3. **The mentor:** confirms the reference rows against the monographs, and sets the expected
+   verdict for the validation labels.
+4. **Validation labels:** someone photographs 30–50 herbal product labels (no personal data in the
+   photos) and uploads them under Admin → Validation labels.
+5. **AWS:** one EC2 instance (at least 2 GB of memory is my guess, since the images are built on
+   it), with ports 80 and 443 open to everyone and SSH only from your own address. Check the
+   current price of a public IP address on your account.
+6. **A domain name** for HTTPS. A free one from a service like DuckDNS is enough; the certificate
+   is free from Let's Encrypt. Without HTTPS the sign-in cookie can't be marked secure, and the
+   app refuses to start in production without that.
+7. **EMA reuse terms:** someone reads EMA's legal notice (or asks EMA) before the reference data
+   is published, and fills in the licence line in DATA_SOURCES.md.
 
 ## How label reading works
 
@@ -48,8 +88,11 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 2. **The "differs" result.** Sometimes a label clearly describes a different preparation from
    every studied one. For now it is shown like "Cannot say", with the line "The label describes a
    different preparation from the ones studied" (built in step 2). Check with the mentor.
-3. **Forgotten passwords.** We have no email system, so the page says "ask your admin". Is that
-   OK for the hackathon? If yes, admins need a small "reset password" button (step 4).
+3. **Email account for sending.** Password reset emails are sent through Gmail with an app
+   password (free), set in `.env`. Which Gmail account does the team use? Revisit this if the
+   app gets many users (Gmail allows about 500 emails a day).
+4. **Validation labels.** Who photographs the 30–50 real labels, who types in the correct answers,
+   and which expert sets the expected verdicts? The pitch numbers depend on this (see risk 4).
 
 ## Biggest risks
 
@@ -67,6 +110,79 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 5. **Too much for one week.** Plan: compare, PDF export and admin polish are cut first.
 
 ## Decisions made
+
+### Step 4 (5 Nov)
+
+- **Always the better option, not the easier one** (agreed). So: validation labels are managed in
+  an admin screen, and forgotten passwords are reset by email.
+- **Password reset by email.**
+  - "Forgot password?" asks for an email and always answers the same way, so nobody can find out
+    who has an account.
+  - The link works once and expires after 60 minutes; only its hash is stored.
+  - Choosing a new password signs the account out on every device.
+  - Admins can also send a reset email from the user list.
+  - Email is sent over SMTP with settings in `.env`; no new library. We use Gmail with an app
+    password; with no `SMTP_HOST` set, no email is sent.
+- **Expert review queue.** Experts and admins see the newest verdict of each checked scan,
+  without the pharmacist's name or email (as onboarding promises). They choose Agree, Disagree
+  (then the right verdict) or Unsure, with an optional reason. A review shows up in the
+  pharmacist's activity log.
+- **"Differs" is named on expert and admin screens** ("Differs from every studied preparation"),
+  so the mentor can see it. Pharmacists and patients still see "Cannot say".
+- **Admin users page:** deactivate or reactivate accounts (it takes effect immediately), send a
+  reset email, and see the invitations. Admins can't deactivate themselves.
+- **Reference table page** for everyone; admins add, edit and delete rows, and every change to a
+  studied preparation is kept in a history (who, when, which fields). Rows not yet checked still
+  need a `TODO(expert)` note.
+- **Validation labels (admin):**
+  - Upload a photo or paste label text. The app pre-fills the fields from its own reading when
+    there is one; the annotator corrects every field and sets the expected verdict.
+  - The expected verdict should come from the expert, not from what LabelLens says, so the editor
+    does not show the app's verdict.
+  - Only labels marked Final count. The same photo can't be added twice.
+- **Validation runs:**
+  - Started by an admin on the Validation page, or with `python -m app.cli run-validation`. Both
+    run the same code. A run only replays saved readings, so it never costs money.
+  - Each run measures: fields read correctly (including "invented" values the label doesn't
+    state); verdict right end to end and with the correct fields; two baselines (a keyword
+    match, and a plain AI prompt without our rules); and how often experts agree.
+  - Every number has a 95% confidence range, and the page warns when fewer than 30 labels count.
+  - Each run stores a copy of the exact answers it was scored against, so pitch numbers can be
+    traced back.
+  - The plain-prompt baseline needs its own saved readings:
+    `python -m app.cli fetch-readings` creates them, which calls the paid API.
+  - This replaces the planned `validation/run_validation.py` script: one code path, used by both
+    the page and the command line.
+- **Charts** use Recharts (agreed), loaded only on the Validation page so other pages stay fast.
+  Colours were checked with a colour-blindness validator; every chart has a table with the same
+  numbers.
+
+### Step 3 (4 Nov)
+
+- **Compare two products: postponed** (agreed). The design has no Compare screen. The Compare
+  buttons and the "Saved comparisons" tile are left out until it is designed.
+- **PDF = the browser's "Save as PDF"** (agreed). The summary page is an A4 sheet styled for
+  printing; it always prints in the light theme and fits on one page for the example labels.
+  No new dependencies.
+- **Patient links:**
+  - They work like invitations: the token sits after `#` in the link, so it never reaches server
+    logs, and only its hash is stored.
+  - They expire after 24 hours, 7 days or 30 days, and can be revoked on the scan's detail page.
+    The design says "from My scans", but that page has no room for a list of links per scan.
+  - A link shows the verdict as it was when the link was made. Checking the scan again later does
+    not change what the patient sees; make a new link for that.
+  - The patient page shows the product name, the plant and the verdict in plain language. It
+    shows nothing else from the scan: no photo, no fields.
+- **Patient wording** was written by us, following the design's three examples. TODO(expert): a
+  pharmacist on the team should check it (see risk 3).
+- **Sources are listed once per document.** Several studied preparations usually cite the same
+  monograph; listing it three times looked wrong and pushed the summary onto a second page.
+- **Added beyond the design:** a "Delete scan" button on the scan detail page (privacy: users can
+  remove a scan and its photo themselves).
+- **Left out of My scans:** label thumbnails (they would load every full-size photo). Filtering
+  and sorting happen in the browser over your newest 1000 scans.
+- **Activity log** comes from the audit log (scanned, corrected, checked, shared, revoked). Expert
+  reviews will show up there in step 4.
 
 ### Step 2 (3 Nov)
 

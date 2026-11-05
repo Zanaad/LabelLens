@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -9,7 +10,8 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.cli import ReferenceFile, import_reference
+from app.api.schemas import ReferenceFile
+from app.cli import import_reference
 from app.extraction.providers import (
     PROMPT_VERSION,
     CachedProvider,
@@ -18,7 +20,7 @@ from app.extraction.providers import (
     get_extraction_provider,
 )
 from app.extraction.schema import FIELD_KEYS
-from app.models import Correction, Role, Scan
+from app.models import Correction, Role, Scan, ShareLink
 from app.services.images import ImageError, clean_upload
 from app.services.storage import LocalStorage, get_storage
 from tests.conftest import login, make_user
@@ -188,6 +190,68 @@ def test_verdict_is_stored_owner_only_and_needs_a_herbal_product(
     make_user(db, "other@example.org", Role.pharmacist)
     login(client, "other@example.org")
     assert client.post(f"/api/scans/{scan['id']}/verdict").status_code == 404
+
+
+def checked_scan(client: TestClient, db: Session, cache_dir: Path) -> dict:
+    sample = Path(__file__).parents[2] / "data" / "reference" / "sample.json"
+    import_reference(db, ReferenceFile.model_validate_json(sample.read_bytes()))
+    cache(cache_dir, LABEL.encode(), extraction())
+    scan = client.post("/api/scans/text", json={"text": LABEL}).json()
+    client.patch(f"/api/scans/{scan['id']}/fields", json={"fields": {"batch": "X1"}})
+    return scan
+
+
+def test_patient_link_lifecycle(client: TestClient, db: Session, setup):
+    cache_dir, _ = setup
+    scan = checked_scan(client, db, cache_dir)
+    shares = f"/api/scans/{scan['id']}/shares"
+    assert client.post(shares, json={"days": 7}).status_code == 409  # not checked yet
+    client.post(f"/api/scans/{scan['id']}/verdict")
+    assert client.post(shares, json={"days": 3}).status_code == 422  # only 1, 7 or 30 days
+    link = client.post(shares, json={"days": 7}).json()
+    stored = db.get(ShareLink, uuid.UUID(link["id"]))
+    assert stored is not None and stored.token_hash != link["token"]  # only the hash is kept
+
+    client.post("/api/auth/logout")  # patients have no account
+    view = client.post("/api/shared", json={"token": link["token"]})
+    assert view.status_code == 200, view.text
+    assert view.json()["verdict"] == "cannot_say" and view.json()["shared_by"] == "Arta"
+    assert "fields" not in view.json()
+
+    make_user(db, "other@example.org", Role.pharmacist)
+    login(client, "other@example.org")
+    assert client.delete(f"{shares}/{link['id']}").status_code == 404
+    client.post("/api/auth/logout")
+    login(client, "arta@example.org")
+    assert client.delete(f"{shares}/{link['id']}").status_code == 204
+    assert client.post("/api/shared", json={"token": link["token"]}).status_code == 404
+
+    expired = client.post(shares, json={"days": 1}).json()
+    db.expire_all()
+    old = db.get(ShareLink, uuid.UUID(expired["id"]))
+    assert old is not None
+    old.expires_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    assert client.post("/api/shared", json={"token": expired["token"]}).status_code == 404
+
+
+def test_scan_list_and_history_are_owner_only(client: TestClient, db: Session, setup):
+    cache_dir, _ = setup
+    scan = checked_scan(client, db, cache_dir)
+    client.post(f"/api/scans/{scan['id']}/verdict")
+    [row] = client.get("/api/scans").json()
+    assert row["verdict"] == "cannot_say" and row["plant"] == "St John's wort"
+    assert row["missing"] > 0
+    history = client.get(f"/api/scans/{scan['id']}/history").json()
+    assert history["corrections"][0]["new"] == "X1" and history["corrections"][0]["by"] == "Arta"
+    actions = [a["action"] for a in history["activity"]]
+    assert actions == ["scan.create", "scan.correct", "scan.check"]
+
+    client.post("/api/auth/logout")
+    make_user(db, "other@example.org", Role.pharmacist)
+    login(client, "other@example.org")
+    assert client.get("/api/scans").json() == []
+    assert client.get(f"/api/scans/{scan['id']}/history").status_code == 404
 
 
 def test_only_pharmacists_can_scan(client: TestClient, db: Session, setup):

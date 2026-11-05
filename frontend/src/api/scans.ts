@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 
 export const FIELD_KEYS = [
@@ -74,8 +74,50 @@ export type Verdict = {
   sources: Source[];
 };
 
+export type ScanListItem = {
+  id: string;
+  created_at: string;
+  status: Scan["status"];
+  product_name: string | null;
+  plant: string | null;
+  verdict: VerdictCode | null;
+  missing: number | null;
+};
+
+export type Share = {
+  id: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  last_viewed_at: string | null;
+};
+
+export type ScanHistory = {
+  corrections: { field: FieldKey; old: string | null; new: string | null; by: string | null; at: string }[];
+  activity: { action: string; by: string | null; at: string; details: Record<string, string | number> | null }[];
+  shares: Share[];
+};
+
+export type SharedView = {
+  product_name: string | null;
+  plant: string | null;
+  verdict: VerdictCode;
+  shared_by: string;
+  organisation: string | null;
+  shared_at: string;
+  expires_at: string;
+};
+
+const listKey = ["scans"] as const;
 const scanKey = (id: string) => ["scans", id] as const;
 const verdictKey = (id: string) => ["scans", id, "verdict"] as const;
+const historyKey = (id: string) => ["scans", id, "history"] as const;
+
+// After a change to one scan, refetch the list and its history (only if they are on screen).
+function refresh(qc: QueryClient, id: string) {
+  void qc.invalidateQueries({ queryKey: listKey, exact: true });
+  void qc.invalidateQueries({ queryKey: historyKey(id) });
+}
 
 export function useCreateScan() {
   const qc = useQueryClient();
@@ -88,7 +130,55 @@ export function useCreateScan() {
       }
       return api<Scan>("/api/scans/text", { method: "POST", json: { text: input.text } });
     },
-    onSuccess: (scan) => qc.setQueryData(scanKey(scan.id), scan),
+    onSuccess: (scan) => {
+      qc.setQueryData(scanKey(scan.id), scan);
+      refresh(qc, scan.id);
+    },
+  });
+}
+
+export function useScans() {
+  return useQuery({ queryKey: listKey, queryFn: () => api<ScanListItem[]>("/api/scans") });
+}
+
+export function useScanHistory(id: string) {
+  return useQuery({ queryKey: historyKey(id), queryFn: () => api<ScanHistory>(`/api/scans/${id}/history`) });
+}
+
+export function useDeleteScan(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<void>(`/api/scans/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: scanKey(id) });
+      refresh(qc, id);
+    },
+  });
+}
+
+export function useCreateShare(scanId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (days: 1 | 7 | 30) =>
+      api<Share & { token: string }>(`/api/scans/${scanId}/shares`, { method: "POST", json: { days } }),
+    onSuccess: () => refresh(qc, scanId),
+  });
+}
+
+export function useRevokeShare(scanId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (shareId: string) => api<void>(`/api/scans/${scanId}/shares/${shareId}`, { method: "DELETE" }),
+    onSuccess: () => refresh(qc, scanId),
+  });
+}
+
+// Public: the patient's browser sends the token from the link's fragment.
+export function useSharedView(token: string) {
+  return useQuery({
+    queryKey: ["shared", token],
+    queryFn: () => api<SharedView>("/api/shared", { method: "POST", json: { token } }),
+    enabled: token.length > 0,
   });
 }
 
@@ -101,7 +191,10 @@ export function useUpdateFields(id: string) {
   return useMutation({
     mutationFn: (fields: Partial<Record<FieldKey, string | null>>) =>
       api<Scan>(`/api/scans/${id}/fields`, { method: "PATCH", json: { fields } }),
-    onSuccess: (scan) => qc.setQueryData(scanKey(id), scan),
+    onSuccess: (scan) => {
+      qc.setQueryData(scanKey(id), scan);
+      refresh(qc, id);
+    },
   });
 }
 
@@ -114,6 +207,10 @@ export function useCheckScan(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api<Verdict>(`/api/scans/${id}/verdict`, { method: "POST" }),
-    onSuccess: (verdict) => qc.setQueryData(verdictKey(id), verdict),
+    onSuccess: (verdict) => {
+      qc.setQueryData(verdictKey(id), verdict);
+      void qc.invalidateQueries({ queryKey: scanKey(id), exact: true }); // status is now "checked"
+      refresh(qc, id);
+    },
   });
 }

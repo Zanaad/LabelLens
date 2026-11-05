@@ -17,7 +17,22 @@ its source.
 > LabelLens gives no dosing or treatment advice.
 
 Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: early
-development (scan, review fields and result work; reference data is a sample).
+development (scan, review, result, scan history, patient share links, printable summary, expert
+review, admin pages and validation work; reference data is a sample).
+
+## What LabelLens does, in plain words
+
+Studies say a herb helped, but only for the exact preparation they tested: a given plant part,
+extract type, extract ratio and solvent. A shop product that just says "St John's wort" may be a
+different preparation, so the evidence may not apply to it.
+
+1. **Read:** the app copies what the label says (plant, plant part, preparation, ratio, solvent)
+   and the pharmacist fixes any mistake.
+2. **Compare:** it checks those facts against the studied preparations in the EU monographs.
+3. **Answer:** matches, partly matches, or cannot say, plus what the label leaves out and what to
+   ask the manufacturer, with a source for every claim.
+
+Reading the label is only the first step. The value is in the comparison.
 
 ## Quick start (Docker)
 
@@ -65,6 +80,25 @@ EXTRACTION_API_KEY=                  # your Anthropic API key
 
 Every real reading is saved to `data/extraction_cache/` (keyed by input, prompt version and
 model), so it can be replayed later with the cached provider and used for validation.
+
+## Email (password reset)
+
+"Forgot password?" emails a one-time link that expires after 60 minutes; admins can also send
+one from **Admin → Users**. Without `SMTP_HOST` no email is sent. Put your provider's SMTP details
+in `.env` and restart. For Gmail, turn on 2-Step Verification, create an app password under
+Google Account → Security → App passwords, and use it as `SMTP_PASSWORD`:
+
+```bash
+APP_BASE_URL=https://your-labellens-address   # start of the link inside the email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURITY=starttls                        # or ssl (port 465) or none
+SMTP_USERNAME=                                # your Gmail address
+SMTP_PASSWORD=                                # the app password, not your normal password
+SMTP_FROM="LabelLens <your.address@gmail.com>"
+```
+
+Check the spam folder when testing.
 
 ## Local development
 
@@ -114,11 +148,32 @@ says "sample reference data" while any row it used is unchecked.
 
 Code: [MIT licence](LICENSE).
 
-## Reproducing validation results
+## Validation
 
-The validation harness (`validation/run_validation.py`) is not built yet. It will run the cached
-extraction outputs and the rules engine over the annotated labels in `data/labels/` and write
-metrics to `validation/results/`, without API keys. Every number we report must come from it.
+Validation measures how often LabelLens is right on labels whose correct answers are known.
+
+1. **Add labels:** as an admin, open **Admin → Validation labels**, upload a label photo or paste
+   its text, check every field against the label, set the expected verdict (decided by an expert)
+   and mark the label **Final**.
+2. **Run:** open **Validation** and click **Run validation**, or from the command line:
+
+   ```bash
+   docker compose exec backend python -m app.cli run-validation --out /validation/results
+   ```
+
+   A run replays saved readings only (no API calls, no cost) and is stored, with a copy of the
+   exact answers it was scored against. `--out` also writes the metrics as JSON to
+   `validation/results/`.
+3. **Read the results** on the Validation page: fields read correctly (including values the
+   reader invented), verdict accuracy end to end and with the correct fields, two baselines (keyword
+   matching, and a plain AI prompt without our rules), expert agreement, and every mistake. All
+   numbers come with a 95% confidence range.
+
+Labels without a saved reading are left out of the field and end-to-end numbers. With an API key
+in `EXTRACTION_API_KEY`, `python -m app.cli fetch-readings` reads them (and the plain-prompt
+baseline) through the paid Claude API; the readings are saved for later runs.
+
+Every number used in the pitch must come from a stored run over Final labels.
 
 ## Repository layout
 
@@ -128,10 +183,12 @@ backend/
     main.py          FastAPI app factory
     config.py        settings from env vars (see .env.example)
     db.py            database engine and session
-    cli.py           admin commands (create-admin, import-reference)
-    api/             routes (auth, invitations, scans, health), auth dependencies, schemas
+    cli.py           admin commands (create-admin, import-reference, run-validation, fetch-readings)
+    api/             routes (auth, admin, invitations, scans, share links, reviews, reference,
+                     annotations, validation, health), auth dependencies, schemas
     models/          SQLAlchemy models
-    services/        password hashing, tokens, rate limiting, audit log, file storage
+    services/        password hashing, tokens, rate limiting, audit log, file storage, email,
+                     validation runs
     extraction/      label extraction providers
     rules/           rules engine (pure Python, versioned): label fields vs studied preparations
   alembic/           database migrations
@@ -143,6 +200,6 @@ frontend/src/
   pages/             one file per screen
   i18n/              UI strings (English)
   theme/             design tokens (CSS variables), theme toggle
-data/                reference table (sample.json), saved label readings, annotated labels
-validation/          validation harness, baselines, results
+data/                reference table (sample.json), saved label readings
+validation/results/  JSON copies of validation runs (run-validation --out)
 ```

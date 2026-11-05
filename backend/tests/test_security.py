@@ -19,7 +19,8 @@ from tests.conftest import login, make_user
 
 def test_session_token_rejects_expired_and_forged():
     uid = uuid.uuid4()
-    assert decode_session_token(create_session_token(uid)) == uid
+    claims = decode_session_token(create_session_token(uid))
+    assert claims is not None and claims[0] == uid
     s = get_settings()
     expired = jwt.encode(
         {"sub": str(uid), "typ": "session", "exp": datetime.now(UTC) - timedelta(seconds=1)},

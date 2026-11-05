@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedMixin, IdMixin, TimestampMixin
@@ -30,13 +30,17 @@ class ExpertRating(IdMixin, CreatedMixin, Base):
 
 
 class Annotation(IdMixin, TimestampMixin, Base):
-    """Ground-truth fields for one label image in data/labels/."""
+    """A validation label: its photo or text, the correct fields and the expected verdict."""
 
     __tablename__ = "annotations"
 
-    label_ref: Mapped[str] = mapped_column(String(300), unique=True)  # path under data/labels/
-    image_sha256: Mapped[str | None] = mapped_column(String(64), index=True)
-    fields_json: Mapped[dict[str, Any]]
+    title: Mapped[str] = mapped_column(String(200))
+    # Storage key of the photo exactly as the model sees it (so its cached reading can be found).
+    label_ref: Mapped[str | None] = mapped_column(String(300), unique=True)
+    label_text: Mapped[str | None] = mapped_column(Text)
+    image_sha256: Mapped[str] = mapped_column(String(64), unique=True)  # of the photo or text
+    fields_json: Mapped[dict[str, Any]]  # field -> correct value, null when not on the label
+    notes: Mapped[str | None] = mapped_column(Text)
     expected_verdict: Mapped[VerdictCode | None] = mapped_column(
         str_enum(VerdictCode, "expected_verdict_code")
     )
@@ -63,6 +67,8 @@ class ValidationRun(IdMixin, CreatedMixin, Base):
 
 class AuditLog(IdMixin, CreatedMixin, Base):
     __tablename__ = "audit_log"
+    # Scan detail reads one entity's activity.
+    __table_args__ = (Index("ix_audit_log_entity", "entity_type", "entity_id"),)
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), index=True

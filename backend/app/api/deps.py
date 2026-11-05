@@ -13,9 +13,13 @@ from app.services.security import decode_session_token
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     token = request.cookies.get(get_settings().cookie_name)
-    user_id = decode_session_token(token) if token else None
-    user = db.get(User, user_id) if user_id else None
-    if user is None or not user.is_active:
+    claims = decode_session_token(token) if token else None
+    user = db.get(User, claims[0]) if claims else None
+    if claims is None or user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
+    # A password reset ends every session that started before it (whole seconds, so "<=").
+    cut_off = user.sessions_valid_from
+    if cut_off and claims[1] <= int(cut_off.timestamp()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
     return user
 
