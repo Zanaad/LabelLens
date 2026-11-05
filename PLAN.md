@@ -23,7 +23,7 @@ product is "safe", never gives dosing advice, and never treats missing informati
 | 2 | Comparison rules, table of studied preparations, result screen (verdict, what's missing, sources) | **Done**  |
 | 3 | My scans, scan detail, share link for patients, printable summary (compare postponed) | **Done** |
 | 4 | Expert review queue, admin pages, validation labels and runs, password reset by email | **Done** |
-| 5 | Make it real: real data, real label reading, nothing demo-only, running on one EC2 server | Next |
+| 5 | Make it real: real data, real label reading, nothing demo-only, running on one EC2 server | In progress: EMA draft data |
 | 6 | Polish, demo data, final numbers for the pitch | After 5 |
 
 Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5, weekend step 6 and rehearsal.
@@ -35,7 +35,7 @@ nothing paid beyond the AI key. What is hardcoded or unfinished today:
 
 | Gap | Today | Planned fix |
 | --- | --- | --- |
-| Studied preparations | 7 placeholder rows copied from the design | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
+| Studied preparations | 7 source-linked EMA draft rows in `ema-draft.json`; all await expert review | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
 | Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
 | Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
 | Pages without content | About, Methods and Settings are placeholders | Write them: how it works and its limits, and account settings (change password) |
@@ -139,6 +139,15 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 5. **Too much for one week.** Plan: compare, PDF export and admin polish are cut first.
 
 ## Decisions made
+
+### Step 5 data work (5 Nov)
+
+- Added `data/reference/ema-draft.json`: seven preparations across Hypericum, Ginkgo and Matricaria, transcribed from final EMA monographs with document identifiers and page/section locators. All remain `verified=false`.
+- The old `sample.json` remains a test/demo fixture. Use the EMA draft for a new local reference table; the importer upserts and does not remove previous sample rows. Do not combine both datasets in an existing database without reviewing obsolete rows in Admin.
+- Corrected the Hypericum source (the old landing URL describes a combination product), and specified Matricaria liquid extract h as DER 1:1 and ethanol 55% V/V.
+- Coverage is deliberately partial. Compound solvents, solvent ranges and other preparations need further modelling/review. Marker specifications, route and indication are not compared; matching fields is not full monograph compliance.
+- Name mappings remain unchecked candidates. Expert verification, real label photographs, extraction API configuration and validation runs remain outstanding.
+
 
 ### Step 4 (5 Nov)
 

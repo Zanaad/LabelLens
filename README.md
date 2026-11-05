@@ -61,7 +61,7 @@ Load the reference table (studied preparations and plant names). Running it agai
 changes:
 
 ```bash
-docker compose exec backend python -m app.cli import-reference /data/reference/sample.json
+docker compose exec backend python -m app.cli import-reference /data/reference/ema-draft.json
 ```
 
 ## Label reading
@@ -141,8 +141,8 @@ docker run --rm -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm -v "$PWD":/ap
 
 Reference preparations come from EU herbal monographs published by the European Medicines Agency (Committee on Herbal Medicinal Products,
 HMPC) and the studies they cite. The reference table in this repository
-(`data/reference/sample.json`) currently contains **placeholder rows only** (`verified=false`,
-values taken from the design prototype); real rows are added and checked by a pharmacognosy
+(`data/reference/ema-draft.json`) contains **seven source-linked draft rows** (`verified=false`,
+transcribed from final EMA monographs); these rows still need checking by a pharmacognosy
 mentor. The import refuses unchecked rows without a `TODO(expert)` note, and the result page
 says "sample reference data" while any row it used is unchecked.
 

@@ -1,0 +1,169 @@
+{
+  "preparations": [
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb (flowering tops)",
+      "preparation_type": "Dry extract",
+      "extract_ratio_min": 3,
+      "extract_ratio_max": 7,
+      "solvent_type": "Methanol",
+      "solvent_strength": "80% (v/v)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba — EMA/HMPC/7695/2021, Final Revision 1 (2022-11-23)",
+      "source_section": "Section 2, WEU preparation a, p. 3; section 6, pp. 13-14",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-hypericum-perforatum-l-herba-revision-1_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route. Section 6 also requires quantification/declaration of constituents; these are not compared by the current engine."
+    },
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb (flowering tops)",
+      "preparation_type": "Dry extract",
+      "extract_ratio_min": 3,
+      "extract_ratio_max": 6,
+      "solvent_type": "Ethanol",
+      "solvent_strength": "80% (v/v)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba — EMA/HMPC/7695/2021, Final Revision 1 (2022-11-23)",
+      "source_section": "Section 2, WEU preparation b, p. 3; section 6, pp. 13-14",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-hypericum-perforatum-l-herba-revision-1_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route. Section 6 also requires quantification/declaration of constituents; these are not compared by the current engine."
+    },
+    {
+      "herb_latin": "Hypericum perforatum L.",
+      "plant_part": "Herb",
+      "preparation_type": "Comminuted herbal substance (herbal tea)",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Hypericum perforatum L., herba — EMA/HMPC/7695/2021, Final Revision 1 (2022-11-23)",
+      "source_section": "Section 2, TU preparation j, p. 4",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-hypericum-perforatum-l-herba-revision-1_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route."
+    },
+    {
+      "herb_latin": "Ginkgo biloba L.",
+      "plant_part": "Leaf",
+      "preparation_type": "Refined and quantified dry extract",
+      "extract_ratio_min": 35,
+      "extract_ratio_max": 67,
+      "solvent_type": "Acetone",
+      "solvent_strength": "60% (m/m)",
+      "evidence_level": "Well-established use",
+      "source_doc": "EU herbal monograph on Ginkgo biloba L., folium — EMA/HMPC/321097/2012, Final (2015)",
+      "source_section": "Section 2, WEU preparation and footnote 3, p. 2",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-ginkgo-biloba-l-folium_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route. Footnote 3 requires refined and quantified extract complying with the named Ph. Eur. monograph; constituent specifications are not compared."
+    },
+    {
+      "herb_latin": "Ginkgo biloba L.",
+      "plant_part": "Leaf",
+      "preparation_type": "Powdered herbal substance",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Ginkgo biloba L., folium — EMA/HMPC/321097/2012, Final (2015)",
+      "source_section": "Section 2, TU preparation, p. 2",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-ginkgo-biloba-l-folium_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route."
+    },
+    {
+      "herb_latin": "Matricaria recutita L.",
+      "plant_part": "Flower",
+      "preparation_type": "Comminuted herbal substance (herbal tea)",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Matricaria recutita L., flos — EMA/HMPC/55843/2011, First version (2015)",
+      "source_section": "Section 2, TU preparation a, p. 2; section 3, p. 3",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-matricaria-recutita-l-flos-first-version_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route."
+    },
+    {
+      "herb_latin": "Matricaria recutita L.",
+      "plant_part": "Flower",
+      "preparation_type": "Liquid extract",
+      "solvent_type": "Ethanol",
+      "evidence_level": "Traditional use",
+      "source_doc": "EU herbal monograph on Matricaria recutita L., flos — EMA/HMPC/55843/2011, First version (2015)",
+      "source_section": "Section 2, TU preparation h, p. 2",
+      "source_url": "https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-matricaria-recutita-l-flos-first-version_en.pdf",
+      "verified": false,
+      "notes": "TODO(expert): drafted from the cited final EMA monograph on 2026-11-05; check transcription and applicability. Partial coverage only; a field match does not establish equivalence for an indication or route.",
+      "extract_ratio_min": 1,
+      "extract_ratio_max": 1,
+      "solvent_strength": "55% (v/v)"
+    }
+  ],
+  "plant_names": [
+    {
+      "name": "St John's wort",
+      "language": "en",
+      "latin_name": "Hypericum perforatum L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Hypericum perforatum",
+      "language": "la",
+      "latin_name": "Hypericum perforatum L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Ginkgo",
+      "language": "en",
+      "latin_name": "Ginkgo biloba L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Ginkgo biloba",
+      "language": "la",
+      "latin_name": "Ginkgo biloba L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Chamomile",
+      "language": "en",
+      "latin_name": "Matricaria recutita L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Chamomile",
+      "language": "en",
+      "latin_name": "Chamaemelum nobile (L.) All.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "German chamomile",
+      "language": "en",
+      "latin_name": "Matricaria recutita L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Roman chamomile",
+      "language": "en",
+      "latin_name": "Chamaemelum nobile (L.) All.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Matricaria recutita",
+      "language": "la",
+      "latin_name": "Matricaria recutita L.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    },
+    {
+      "name": "Chamaemelum nobile",
+      "language": "la",
+      "latin_name": "Chamaemelum nobile (L.) All.",
+      "verified": false,
+      "notes": "TODO(expert): retained candidate name mapping from the demo dataset; botanical synonym verification is pending. Common chamomile remains ambiguous between German and Roman species."
+    }
+  ]
+}
