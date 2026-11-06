@@ -140,7 +140,8 @@ def test_validation_run(
     as_user(client, db, "admin2@example.org", Role.admin)
     notes_only = client.put(
         url,
-        json=body | {"expected_verdict": "partly_matches", "fields_checked": True, "notes": "Reviewed"},
+        json=body
+        | {"expected_verdict": "partly_matches", "fields_checked": True, "notes": "Reviewed"},
     ).json()
     assert notes_only["checked_at"] == checked_at
     assert notes_only["checked_by"] == "Admin"
@@ -152,7 +153,8 @@ def test_validation_run(
 
     as_user(client, db, "e@example.org", Role.expert)
     assert client.post("/api/validation/runs", json={}).status_code == 403
-    as_user(client, db, "admin2@example.org", Role.admin)
+    client.post("/api/auth/logout")
+    login(client, "admin2@example.org")
     m = client.post("/api/validation/runs", json={}).json()["metrics"]
     assert m["dataset"]["labels"] == 1 and m["dataset"]["read"] == 1
     assert m["fields"]["plant"]["correct"] == 1  # case does not matter

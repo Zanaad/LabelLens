@@ -111,6 +111,7 @@ export type SharedView = {
 const listKey = ["scans"] as const;
 const scanKey = (id: string) => ["scans", id] as const;
 const verdictKey = (id: string) => ["scans", id, "verdict"] as const;
+const verdictsKey = (id: string) => ["scans", id, "verdicts"] as const;
 const historyKey = (id: string) => ["scans", id, "history"] as const;
 
 // After a change to one scan, refetch the list and its history (only if they are on screen).
@@ -218,6 +219,10 @@ export function useVerdict(id: string) {
   return useQuery({ queryKey: verdictKey(id), queryFn: () => api<Verdict>(`/api/scans/${id}/verdict`) });
 }
 
+export function useVerdictHistory(id: string) {
+  return useQuery({ queryKey: verdictsKey(id), queryFn: () => api<Verdict[]>(`/api/scans/${id}/verdicts`) });
+}
+
 // Compares the reviewed fields with the reference table and stores the verdict.
 export function useCheckScan(id: string) {
   const qc = useQueryClient();
@@ -225,6 +230,7 @@ export function useCheckScan(id: string) {
     mutationFn: () => api<Verdict>(`/api/scans/${id}/verdict`, { method: "POST" }),
     onSuccess: (verdict) => {
       qc.setQueryData(verdictKey(id), verdict);
+      void qc.invalidateQueries({ queryKey: verdictsKey(id) });
       void qc.invalidateQueries({ queryKey: scanKey(id), exact: true }); // status is now "checked"
       refresh(qc, id);
     },

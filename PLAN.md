@@ -129,6 +129,10 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ## Decisions made
 
+### Recheck saved scans (6 Nov)
+
+- A pharmacist can check a saved scan again using its saved fields and the current reference table. Each check stores a new dated verdict; earlier verdicts and their reasons remain visible on the scan detail page. Rechecking does not change an existing patient link, which keeps the verdict selected when the link was created.
+
 ### Shared interface refresh
 
 - Refined shared navigation, typography, controls, tables and authentication layouts. Desktop uses a two-row top navigation; mobile uses a compact menu. Existing role permissions remain. Warm neutral surfaces and restrained teal accents use the existing light/dark tokens. No new dependencies.

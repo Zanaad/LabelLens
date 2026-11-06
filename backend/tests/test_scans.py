@@ -325,6 +325,30 @@ def test_verdict_is_stored_owner_only_and_needs_a_herbal_product(
     assert client.post(f"/api/scans/{scan['id']}/verdict").status_code == 404
 
 
+def test_recheck_uses_current_references_and_keeps_earlier_result(
+    client: TestClient, db: Session, setup
+):
+    cache_dir, _ = setup
+    cache(cache_dir, LABEL.encode(), extraction())
+    scan = client.post("/api/scans/text", json={"text": LABEL}).json()
+    first = client.post(f"/api/scans/{scan['id']}/verdict").json()
+    assert first["verdict"] == "not_covered"
+
+    sample = Path(__file__).parents[2] / "data" / "reference" / "sample.json"
+    import_reference(db, ReferenceFile.model_validate_json(sample.read_bytes()))
+    second = client.post(f"/api/scans/{scan['id']}/verdict").json()
+    assert second["id"] != first["id"]
+    assert second["verdict"] == "cannot_say"
+    assert client.get(f"/api/scans/{scan['id']}/verdict").json()["id"] == second["id"]
+    history = client.get(f"/api/scans/{scan['id']}/verdicts").json()
+    assert {item["id"] for item in history} == {first["id"], second["id"]}
+
+    client.post("/api/auth/logout")
+    make_user(db, "other@example.org", Role.pharmacist)
+    login(client, "other@example.org")
+    assert client.get(f"/api/scans/{scan['id']}/verdicts").status_code == 404
+
+
 def checked_scan(client: TestClient, db: Session, cache_dir: Path) -> dict:
     sample = Path(__file__).parents[2] / "data" / "reference" / "sample.json"
     import_reference(db, ReferenceFile.model_validate_json(sample.read_bytes()))
