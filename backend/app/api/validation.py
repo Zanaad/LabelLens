@@ -69,7 +69,7 @@ def start_run(
     metrics = run_validation(
         db,
         storage,
-        model=s.extraction_model,
+        model=s.validation_model,
         cache_dir=s.extraction_cache_dir,
         include_drafts=body.include_drafts,
     )

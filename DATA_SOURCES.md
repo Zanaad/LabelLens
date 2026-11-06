@@ -28,6 +28,18 @@ reference row checked by our pharmacognosy mentor, before results are shown as a
   patient names).
 - **Licence:** TODO(team) (suggest CC BY 4.0 for our own photos).
 
+### Local draft validation set (6 Nov 2026)
+
+Ten product-label images are stored only in the local app's upload storage as Draft or In review annotations.
+Three came from team-provided local files; seven came from public product pages. Each annotation's
+notes record its source page and filename. These third-party images are for local validation
+review, not repository publication. Confirm reuse rights before distributing the images. Groq
+readings exist for two labels; seven others have limited assistant-entered first-pass fields,
+explicitly marked for independent checking. Rate limits or connection failures stopped further
+Groq readings. No draft counts toward the standard validation report until an admin checks every
+field against the image and marks it Final. An expected verdict is optional and must have its own
+reviewed basis.
+
 ## Fonts
 
 - IBM Plex Sans and IBM Plex Mono, SIL Open Font License 1.1, loaded from Google Fonts.

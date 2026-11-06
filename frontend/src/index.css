@@ -194,7 +194,8 @@
   .ll-example:hover { transform: translateY(-3px); box-shadow: 0 14px 28px color-mix(in srgb, var(--ll-text) 10%, transparent); }
   .ll-example > span:first-child { font-size: 17px; }
   .ll-scan-workspace { padding-top: 8px; border-top: 1px solid var(--ll-border); }
-  .ll-scan-workspace > aside { align-self: flex-start; }
+  .ll-scan-workspace > aside { align-self: stretch; }
+  .ll-scan-workspace > section > .ll-upload-zone { flex: 1; }
   .ll-upload-zone { min-height: 360px; border-color: var(--ll-border-2); background: var(--ll-surface); }
   .ll-upload-zone:hover { border-color: var(--ll-accent); background: color-mix(in srgb, var(--ll-accent-weak) 34%, var(--ll-surface)); }
   .ll-upload-icon { width: 72px; height: 72px; border-radius: 18px; }
@@ -255,4 +256,17 @@
     background: radial-gradient(circle at 88% 18%, #d9ebd7 0, transparent 38%), linear-gradient(115deg, #f0f7f0 0%, #e9f4ec 58%, #e7f0df 100%);
   }
   :root:not([data-theme="dark"]) .ll-scan-hero::after { border-color: #abd1b5; }
+}
+@media screen and (min-width: 768px) {
+  .ll-app { flex-direction: row; }
+  .ll-header { position: sticky; top: 0; width: 280px; height: 100vh; flex: none; overflow-y: auto; border-right: 1px solid #698774; }
+  .ll-header-inner { min-height: 100%; max-width: none; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; padding: 28px 20px 20px; }
+  .ll-header-inner > a { align-self: stretch; margin-bottom: 40px; }
+  .ll-navigation { order: 0; width: 100%; flex: none; flex-direction: column; flex-wrap: nowrap; border-top: 0; padding: 0; }
+  .ll-navigation a { width: 100%; }
+  .ll-account-controls { width: 100%; margin: auto 0 0; padding: 20px 0 0; flex-direction: column; align-items: stretch; border-top: 1px solid #698774; }
+  .ll-account-controls .ll-disclaimer { order: 2; align-self: stretch; }
+  .ll-account-controls > button { align-self: flex-start; }
+  .ll-account-controls > details > summary { width: 100%; }
+  .ll-account-controls > details > div { top: auto; right: auto; bottom: calc(100% + 6px); left: 0; }
 }

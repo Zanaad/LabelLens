@@ -1,12 +1,13 @@
 """Expert review, ground-truth annotations, validation runs and the audit log."""
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, CreatedMixin, IdMixin, TimestampMixin
+from app.models.base import Base, CreatedMixin, IdMixin, TimestampMixin, UTCDateTime
 from app.models.enums import AnnotationStatus, Rating, VerdictCode, str_enum
 
 
@@ -50,6 +51,10 @@ class Annotation(IdMixin, TimestampMixin, Base):
     annotator_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL")
     )
+    checked_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class ValidationRun(IdMixin, CreatedMixin, Base):

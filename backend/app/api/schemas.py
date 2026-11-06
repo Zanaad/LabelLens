@@ -373,6 +373,7 @@ class AnnotationIn(BaseModel):
     expected_verdict: VerdictCode | None = None
     status: AnnotationStatus = AnnotationStatus.draft
     notes: str | None = Field(default=None, max_length=2000)
+    fields_checked: bool = False
 
 
 class AnnotationListItem(BaseModel):
@@ -390,6 +391,8 @@ class AnnotationOut(AnnotationIn):
     has_image: bool
     updated_at: datetime
     annotator: str | None
+    checked_by: str | None
+    checked_at: datetime | None
     prefilled: bool = False  # fields came from the label reader and still need checking
 
 

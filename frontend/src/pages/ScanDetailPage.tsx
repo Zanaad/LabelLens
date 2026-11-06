@@ -10,6 +10,7 @@ import {
   useScanHistory,
   useUpdateFields,
   useVerdict,
+  useVerdictHistory,
   type FieldKey,
   type Scan,
   type ScanHistory,
@@ -150,7 +151,8 @@ function FieldsForm({ scan, history }: { scan: Scan; history: ScanHistory | unde
   );
 }
 
-function VerdictSection({ scan, verdict }: { scan: Scan; verdict: Verdict | undefined }) {
+function VerdictSection({ scan, verdict, previous }: { scan: Scan; verdict: Verdict | undefined; previous: Verdict[] }) {
+  const check = useCheckScan(scan.id);
   return (
     <section aria-labelledby="dverd" className={`${card} flex-[1.4_1_520px] gap-3 p-6`}>
       <h2 id="dverd" className="m-0 text-xl font-semibold">
@@ -163,6 +165,7 @@ function VerdictSection({ scan, verdict }: { scan: Scan; verdict: Verdict | unde
             <span className="font-semibold">{t(VERDICT[verdict.verdict].title)}</span>
           </div>
           <p className="m-0">{t(`result.short.${verdict.verdict}` as MessageKey)}</p>
+          <p className="m-0 text-sm text-muted">{t("detail.checkedAt", { date: formatDateTime(verdict.created_at) })}</p>
           <ol className="m-0 flex list-decimal flex-col gap-2 pl-[22px]">
             {verdict.reasons.map((r, i) => (
               <li key={i} className="pl-1">
@@ -174,6 +177,37 @@ function VerdictSection({ scan, verdict }: { scan: Scan; verdict: Verdict | unde
             {t("detail.seeResult")}
             <ArrowRightIcon />
           </Link>
+          <div className="no-print flex flex-col items-start gap-2 border-t border-border pt-4">
+            <Button variant="secondary" disabled={check.isPending} onClick={() => check.mutate()}>
+              <HistoryIcon />
+              {check.isPending ? t("detail.rechecking") : t("detail.recheck")}
+            </Button>
+            <p className="m-0 text-sm text-muted">{t("detail.recheckHint")}</p>
+            {check.isSuccess && <p role="status" className="m-0 text-sm text-muted">{t("detail.recheckDone")}</p>}
+            {check.isError && <Notice tone="error">{t(`error.${errorCode(check.error)}` as MessageKey)}</Notice>}
+          </div>
+          {previous.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <h3 className="m-0 text-base font-semibold">{t("detail.previousChecks")}</h3>
+              {previous.map((past) => (
+                <details key={past.id} className="rounded-control border border-border p-3">
+                  <summary className="cursor-pointer font-medium">
+                    {formatDateTime(past.created_at)} · {t(VERDICT[past.verdict].title)}
+                  </summary>
+                  <ol className="mb-0 flex list-decimal flex-col gap-1 pl-5 pt-2 text-sm">
+                    {past.reasons.map((reason, i) => <li key={i}>{say("reason", reason)}</li>)}
+                  </ol>
+                  {past.missing.length > 0 && (
+                    <p className="mb-0 text-sm text-muted">
+                      {t("detail.previousMissing", {
+                        missing: past.missing.filter((item) => item.code !== "leaflet").map((item) => t(`missing.${item.code}` as MessageKey)).join(", "),
+                      })}
+                    </p>
+                  )}
+                </details>
+              ))}
+            </div>
+          )}
         </>
       ) : scan.status === "out_of_scope" ? (
         <p className="m-0 text-muted">{t("detail.outOfScope")}</p>
@@ -271,6 +305,7 @@ export function ScanDetailPage() {
   const navigate = useNavigate();
   const scan = useScan(id);
   const verdict = useVerdict(id);
+  const verdictHistory = useVerdictHistory(id);
   const history = useScanHistory(id);
   const remove = useDeleteScan(id);
   const [sharing, setSharing] = useState(false);
@@ -360,7 +395,7 @@ export function ScanDetailPage() {
       </div>
 
       <div className="flex flex-wrap items-start gap-6">
-        <VerdictSection scan={s} verdict={v} />
+        <VerdictSection scan={s} verdict={v} previous={verdictHistory.data?.filter((item) => item.id !== v?.id) ?? []} />
         {history.data && <ActivitySection scanId={s.id} history={history.data} />}
       </div>
       {sharing && <ShareDialog scanId={s.id} name={name} onClose={() => setSharing(false)} />}

@@ -148,6 +148,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
     expected_verdict: (annotation.expected_verdict ?? "") as VerdictCode | "",
     status: annotation.status,
     notes: annotation.notes ?? "",
+    fields_checked: annotation.fields_checked,
   });
   const error = save.error ?? remove.error;
 
@@ -159,6 +160,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
       expected_verdict: form.expected_verdict || null,
       status: form.status,
       notes: form.notes.trim() || null,
+      fields_checked: form.fields_checked,
     });
   };
   const del = () => {
@@ -189,7 +191,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
           {t("annot.editTitle")}
         </h2>
         {annotation.status === "draft" && (
-          <Notice>{annotation.prefilled ? t("annot.prefilled") : t("annot.notPrefilled")}</Notice>
+          <Notice>{t("annot.draftHint")}</Notice>
         )}
         {error && <Notice tone="error">{t(`error.${errorCode(error)}` as MessageKey)}</Notice>}
         <label className="flex flex-col gap-1.5 font-semibold">
@@ -213,7 +215,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
                 maxLength={500}
                 value={form.fields[k]}
                 placeholder={t("review.notStated")}
-                onChange={(e) => setForm({ ...form, fields: { ...form.fields, [k]: e.target.value } })}
+                onChange={(e) => setForm({ ...form, fields: { ...form.fields, [k]: e.target.value }, fields_checked: false })}
                 className={inputClass}
               />
             </label>
@@ -241,7 +243,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
             {t("annot.status")}
             <select
               value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as AnnotationStatus })}
+              onChange={(e) => setForm({ ...form, status: e.target.value as AnnotationStatus, fields_checked: false })}
               className={`${inputClass} font-normal`}
             >
               {STATUSES.map((s) => (
@@ -253,6 +255,21 @@ function Editor({ annotation }: { annotation: Annotation }) {
             <span className="text-sm font-normal text-muted">{t("annot.statusHint")}</span>
           </label>
         </div>
+        {form.status === "final" && (
+          <label className="flex items-start gap-2 text-body-sm">
+            <input
+              type="checkbox"
+              checked={form.fields_checked}
+              onChange={(e) => setForm({ ...form, fields_checked: e.target.checked })}
+            />
+            <span>{t("annot.confirmFields")}</span>
+          </label>
+        )}
+        {annotation.checked_by && annotation.checked_at && (
+          <p className="m-0 text-sm text-muted">
+            {t("annot.checkedBy", { name: annotation.checked_by, date: formatDateTime(annotation.checked_at) })}
+          </p>
+        )}
         <label className="flex flex-col gap-1.5 font-semibold">
           {t("annot.notes")}
           <textarea

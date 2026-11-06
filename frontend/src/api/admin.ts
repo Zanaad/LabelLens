@@ -41,6 +41,7 @@ export type AnnotationInput = {
   expected_verdict: VerdictCode | null;
   status: AnnotationStatus;
   notes: string | null;
+  fields_checked: boolean;
 };
 
 export type Annotation = AnnotationInput & {
@@ -49,6 +50,8 @@ export type Annotation = AnnotationInput & {
   has_image: boolean;
   updated_at: string;
   annotator: string | null;
+  checked_by: string | null;
+  checked_at: string | null;
   prefilled: boolean;
 };
 
