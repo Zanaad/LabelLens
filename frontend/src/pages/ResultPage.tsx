@@ -91,6 +91,8 @@ function SourcesDrawer({ docs, highlight, onClose }: { docs: SourceDoc[]; highli
 function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
   const [asked, setAsked] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [questionsCopied, setQuestionsCopied] = useState(false);
+  const [showManufacturerMessage, setShowManufacturerMessage] = useState(false);
   const [drawer, setDrawer] = useState<{ highlight: number | null } | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -99,6 +101,11 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
   const plant = scan.fields.plant?.value;
   const latin = verdict.plant_latin.length === 1 ? verdict.plant_latin[0] : null;
   const name = scan.product_name ?? plant ?? t("result.unnamed");
+  const manufacturerQuestions = verdict.missing.filter((item) => item.ask === "manufacturer");
+  const manufacturerMessage = t("result.manufacturerMessage", {
+    product: name,
+    questions: manufacturerQuestions.map((item, i) => `${i + 1}. ${say("question", item)}`).join("\n"),
+  });
   const passport: ReactNode[] = [plant, latin && <span className="italic">{latin}</span>, scan.fields.preparation_type?.value].filter(
     Boolean,
   );
@@ -117,6 +124,14 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
     const next = new Set(asked);
     if (!next.delete(i)) next.add(i);
     setAsked(next);
+  };
+  const copyQuestions = async () => {
+    try {
+      await navigator.clipboard.writeText(manufacturerMessage);
+      setQuestionsCopied(true);
+    } catch {
+      setQuestionsCopied(false);
+    }
   };
 
   return (
@@ -245,12 +260,36 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
               <CopyIcon />
               {copied ? t("result.copied") : t("result.copy")}
             </Button>
+            <Button variant="secondary" onClick={copyQuestions} disabled={manufacturerQuestions.length === 0} className="justify-start">
+              <CopyIcon />
+              {t("result.copyManufacturerQuestions")}
+            </Button>
+            {manufacturerQuestions.length > 0 ? (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowManufacturerMessage((shown) => !shown)}
+                  aria-expanded={showManufacturerMessage}
+                  className="justify-start"
+                >
+                  {t(showManufacturerMessage ? "result.hideManufacturerMessage" : "result.showManufacturerMessage")}
+                </Button>
+                {showManufacturerMessage && (
+                  <div className="rounded-control border border-border bg-surface-2 p-4">
+                    <p className="m-0 mb-2 text-sm font-semibold">{t("result.manufacturerPreview")}</p>
+                    <p className="m-0 whitespace-pre-line text-sm text-muted">{manufacturerMessage}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="m-0 text-sm text-muted">{t("result.noManufacturerQuestions")}</p>
+            )}
             <ButtonLink to="/scan" variant="secondary" className="justify-start">
               <RestartIcon />
               {t("result.startOver")}
             </ButtonLink>
             <p aria-live="polite" className="m-0 min-h-[21px] text-sm text-match-fg">
-              {copied ? t("result.copiedNote") : ""}
+              {questionsCopied ? t("result.manufacturerQuestionsCopied") : copied ? t("result.copiedNote") : ""}
             </p>
           </section>
 
