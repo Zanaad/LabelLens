@@ -68,8 +68,8 @@ independently verified. The result page labels unchecked reference rows as sampl
    and test small-print labels. Prevent outputs such as the literal word `none` or a value with
    unrelated quoted evidence from being counted as a stated field.
 5. **Finish demo and deployment work.** Decide whether to keep fictional example labels clearly
-   marked in the app, complete any remaining About/Settings content, and deploy with HTTPS,
-   secure production configuration, backups, and a smoke test. The current Compose setup is for
+   marked in the app, and deploy with HTTPS, secure production configuration, backups, and a
+   smoke test. The current Compose setup is for
    local use. Record the EMA reuse terms before publishing reference data in a public repository.
 
 ### Possible later features
@@ -133,6 +133,30 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 - Coverage is deliberately partial. Compound solvents, solvent ranges and other preparations need further modelling/review. Marker specifications, route and indication are not compared; matching fields is not full monograph compliance.
 - Name mappings remain unchecked candidates. Live extraction and real-photo trials are now in place; independent reference auditing and recorded validation results remain outstanding.
 
+### About page (6 Nov)
+
+- **About** is public and holds the terms of use that register and invitation link to: what the
+  app does and never does, terms, what we store and who sees it, sources and licences. The
+  footer's "About LabelLens" link now opens it (it used to open Methods).
+- TODO(team): the terms and data wording were written by us from what the code does; someone
+  should review them before real users sign up, and update them when EMA reuse terms or self-hosted
+  fonts land.
+
+### Settings page (6 Nov)
+
+- **Settings** follows the design: Profile (full name editable, email and role read-only),
+  Password, Sessions, and Your data (pharmacists only). We kept the organisation
+  field, which the design's Settings leaves out, since it is shown on patient links.
+- **Changing the password** asks for the current one (wrong answer: `wrong_password`), uses the
+  login rate limit and is audited. It signs the account out on every device, this one included,
+  like a reset: sessions are cut off by whole seconds, so a cookie issued in the same second would
+  also be refused. **Sign out of all devices** works the same way.
+- **No Preferences section.** The design's language choice is left out (English only, step 0), and
+  theme alone would only repeat the header toggle.
+- **Your data:** "Revoke all patient links" and "Delete my scan history" ask for confirmation,
+  touch only the user's own data and are audited. The CSV is built in the browser from the same
+  list as My scans (newest 1000 scans), so no new endpoint was needed.
+- **Permission denied** now matches the design: who you are signed in as, and a way back.
 
 ### Step 4 (5 Nov)
 
@@ -304,6 +328,7 @@ every screen. The colours from the design are in `frontend/src/theme/tokens.css`
 | Sign in | "Sign in as a sample user" buttons | Skips the real login | Left out. Demo accounts come in step 5 |
 | Scan | "JPG, PNG or HEIC" | HEIC needs another library | "JPG or PNG" |
 | Onboarding step 3 | Language choice | App is English only | Left out |
+| Account menu | Settings icon is a circle with rays | Looked like a sun, not settings | Standard gear icon |
 | "Matches" colour | Teal | Verdicts must not be green | Kept: it's teal, not green, and always comes with an icon and text. Say if you want it changed |
 
 Screens the original design mentions but does not draw include accept invitation, forgot password,
