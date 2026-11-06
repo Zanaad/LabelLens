@@ -9,7 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.scans import latest_verdict, own_scan, pharmacist_only
-from app.api.schemas import ShareCreate, ShareCreated, SharedTokenIn, SharedView, ShareOut
+from app.api.schemas import (
+    RevokedOut,
+    ShareCreate,
+    ShareCreated,
+    SharedTokenIn,
+    SharedView,
+    ShareOut,
+)
 from app.db import get_db
 from app.models import Extraction, Scan, ShareLink, User, Verdict
 from app.services.audit import audit
@@ -73,6 +80,24 @@ def revoke_share(
         audit(db, "scan.share_revoke", user_id=user.id, entity_type="scan", entity_id=scan.id)
         db.commit()
     return Response(status_code=204)
+
+
+@router.post("/api/shares/revoke-all", response_model=RevokedOut)
+def revoke_all_shares(
+    db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> RevokedOut:
+    now = datetime.now(UTC)
+    active = select(ShareLink).where(
+        ShareLink.created_by_id == user.id,
+        ShareLink.revoked_at.is_(None),
+        ShareLink.expires_at > now,
+    )
+    links = db.scalars(active).all()
+    for link in links:
+        link.revoked_at = now
+    audit(db, "share.revoke_all", user_id=user.id, details={"count": len(links)})
+    db.commit()
+    return RevokedOut(revoked=len(links))
 
 
 @router.post("/api/shared", response_model=SharedView, dependencies=[shared_limit])

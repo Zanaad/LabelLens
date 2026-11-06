@@ -310,3 +310,32 @@ def test_only_pharmacists_can_scan(client: TestClient, db: Session, setup):
     make_user(db, "besim@example.org", Role.expert)
     login(client, "besim@example.org")
     assert client.post("/api/scans/text", json={"text": LABEL}).status_code == 403
+
+
+def test_revoke_all_links_and_delete_history_touch_only_own_data(
+    client: TestClient, db: Session, setup
+):
+    cache_dir, storage = setup
+    scan = checked_scan(client, db, cache_dir)
+    client.post(f"/api/scans/{scan['id']}/verdict")
+    link = client.post(f"/api/scans/{scan['id']}/shares", json={"days": 7}).json()
+    raw = jpeg()
+    cache(cache_dir, clean_upload(raw, 10_000_000).model_data, extraction())
+    photo = client.post("/api/scans/image", files={"file": ("a.jpg", raw, "image/jpeg")}).json()
+    image_path = db.get(Scan, uuid.UUID(photo["id"])).image_path  # type: ignore[union-attr]
+
+    client.post("/api/auth/logout")
+    make_user(db, "other@example.org", Role.pharmacist)
+    login(client, "other@example.org")
+    assert client.post("/api/shares/revoke-all").json() == {"revoked": 0}
+    assert client.delete("/api/scans").status_code == 204
+    assert client.post("/api/shared", json={"token": link["token"]}).status_code == 200
+    assert storage.exists(image_path)
+
+    client.post("/api/auth/logout")
+    login(client, "arta@example.org")
+    assert client.post("/api/shares/revoke-all").json() == {"revoked": 1}
+    assert client.post("/api/shared", json={"token": link["token"]}).status_code == 404
+    assert client.delete("/api/scans").status_code == 204
+    assert client.get("/api/scans").json() == []
+    assert not storage.exists(image_path)
