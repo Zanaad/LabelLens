@@ -137,6 +137,7 @@ def validate(include_drafts: bool, out: Path | None) -> int:
 def fetch_readings() -> int:
     """Fetches unsaved readings and baselines with the configured live provider."""
     s = get_settings()
+    provider: GroqProvider | ClaudeProvider
     if s.extraction_provider == "groq":
         provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
     elif s.extraction_provider == "claude":

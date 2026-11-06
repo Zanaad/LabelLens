@@ -117,9 +117,9 @@ def test_groq_reads_text_and_photo_with_strict_schema(tmp_path: Path, monkeypatc
 
     def reply(request, timeout):
         calls.append((request, timeout))
-        return BytesIO(json.dumps({"choices": [{"message": {
-            "content": json.dumps(output)
-        }}]}).encode())
+        return BytesIO(
+            json.dumps({"choices": [{"message": {"content": json.dumps(output)}}]}).encode()
+        )
 
     monkeypatch.setattr(providers, "urlopen", reply)
     provider = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
@@ -152,7 +152,7 @@ def test_groq_reports_missing_key_quota_and_bad_output(tmp_path: Path, monkeypat
     provider = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
     with pytest.raises(ExtractionError, match="provider_unavailable"):
         provider.extract(image=None, text=LABEL)
-    monkeypatch.setattr(providers, "urlopen", lambda request, timeout: BytesIO(b'{}'))
+    monkeypatch.setattr(providers, "urlopen", lambda request, timeout: BytesIO(b"{}"))
     with pytest.raises(ExtractionError, match="extraction_failed"):
         provider.extract(image=None, text=LABEL)
 

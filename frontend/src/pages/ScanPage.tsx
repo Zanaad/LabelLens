@@ -251,7 +251,7 @@ export function ScanPage() {
               disabled={create.isPending}
               onClick={() => {
                 submit({ text: ex.text });
-                requestAnimationFrame(() => uploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+                requestAnimationFrame(() => uploadRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
               }}
               className={`ll-example ${card} flex min-w-0 flex-[1_1_260px] flex-col items-start gap-1 border-border p-5 text-left hover:bg-surface-2`}
             >

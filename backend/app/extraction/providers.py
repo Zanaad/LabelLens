@@ -252,12 +252,14 @@ class GroqProvider:
             raise ExtractionError("provider_misconfigured")
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
         if image is not None:
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
-                },
-            })
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "data:image/jpeg;base64," + base64.b64encode(image).decode("ascii")
+                    },
+                }
+            )
         else:
             content.append({"type": "text", "text": f"<label_text>\n{text}\n</label_text>"})
         body = {
@@ -288,9 +290,7 @@ class GroqProvider:
                 result = json.load(response)
         except HTTPError as exc:
             code = (
-                "provider_misconfigured"
-                if exc.code in (401, 403, 404)
-                else "provider_unavailable"
+                "provider_misconfigured" if exc.code in (401, 403, 404) else "provider_unavailable"
             )
             raise ExtractionError(code) from None
         except (URLError, TimeoutError):
