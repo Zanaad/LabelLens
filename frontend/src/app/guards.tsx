@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { SESSION_FLAG, useMe, type Role, type User } from "../api/auth";
+import { PASSWORD_CHANGED, SESSION_FLAG, SIGNED_OUT_EVERYWHERE, useMe, type Role, type User } from "../api/auth";
 import { AppShell } from "../components/AppShell";
 import { t } from "../i18n";
 import { ForbiddenPage } from "../pages/StatusPages";
@@ -20,11 +20,13 @@ export function RequireAuth() {
   const location = useLocation();
   if (me.isPending) return <Loading />;
   if (!me.data) {
-    const expired = localStorage.getItem(SESSION_FLAG) === "1";
+    const flag = localStorage.getItem(SESSION_FLAG);
     localStorage.removeItem(SESSION_FLAG);
+    if (flag === PASSWORD_CHANGED) return <Navigate to="/sign-in?reset=done" replace />;
+    if (flag === SIGNED_OUT_EVERYWHERE) return <Navigate to="/sign-in?everywhere=1" replace />;
     return (
       <Navigate
-        to={`/sign-in${expired ? "?expired=1" : ""}`}
+        to={`/sign-in${flag === "1" ? "?expired=1" : ""}`}
         replace
         state={{ from: location.pathname }}
       />
@@ -42,7 +44,7 @@ export function useCurrentUser(): User {
 /** Restrict a route to some roles. Must be nested inside RequireAuth. */
 export function RequireRole({ roles, children }: { roles: Role[]; children?: ReactNode }) {
   const user = useCurrentUser();
-  if (!roles.includes(user.role)) return <ForbiddenPage />;
+  if (!roles.includes(user.role)) return <ForbiddenPage user={user} />;
   return children ?? <Outlet />;
 }
 

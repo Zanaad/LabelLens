@@ -17,7 +17,7 @@ export function Footer() {
     <footer className="no-print border-t border-border bg-surface">
       <div className="mx-auto flex max-w-shell flex-wrap gap-x-10 gap-y-6 px-6 pt-7 pb-8">
         <Col title={t("footer.sourcesTitle")}>
-          {t("footer.sourcesBody")} <Link to="/methods">{t("footer.about")}</Link>
+          {t("footer.sourcesBody")} <Link to="/about">{t("footer.about")}</Link>
         </Col>
         <Col title={t("footer.licencesTitle")}>{t("footer.licencesBody")}</Col>
         <Col

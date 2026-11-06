@@ -156,6 +156,22 @@ export function useDeleteScan(id: string) {
   });
 }
 
+export function useDeleteAllScans() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<void>("/api/scans", { method: "DELETE" }),
+    onSuccess: () => qc.removeQueries({ queryKey: listKey }), // every scan query starts with "scans"
+  });
+}
+
+export function useRevokeAllShares() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{ revoked: number }>("/api/shares/revoke-all", { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: listKey }),
+  });
+}
+
 export function useCreateShare(scanId: string) {
   const qc = useQueryClient();
   return useMutation({

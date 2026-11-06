@@ -331,6 +331,7 @@ export function MyScansPage() {
             <UploadIcon />
             {t("myScans.emptyCta")}
           </ButtonLink>
+          <Link to="/scan">{t("myScans.emptyExample")}</Link>
         </section>
       ) : (
         <>

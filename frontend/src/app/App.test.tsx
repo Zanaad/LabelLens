@@ -71,7 +71,8 @@ describe("routing and auth", () => {
   it("blocks pharmacists from admin pages", async () => {
     mockApi(pharmacist);
     renderApp("/admin");
-    expect(await screen.findByText("You don't have access to this page")).toBeInTheDocument();
+    expect(await screen.findByText("This page isn't available for your role")).toBeInTheDocument();
+    expect(screen.getByText("You're signed in as Arta Krasniqi, Pharmacist.")).toBeInTheDocument();
   });
 
   it("signs in and goes to the role's start page", async () => {
@@ -309,6 +310,24 @@ describe("password reset", () => {
     await user.click(screen.getByRole("button", { name: "Save new password" }));
     expect(await screen.findByText(/Your password was changed/)).toBeInTheDocument();
     expect(sentBody(fetchMock, "/api/auth/reset-password")).toEqual({ token: SHARE_TOKEN, password: PASSWORD });
+  });
+
+  it("changes the password in settings and confirms it on the sign-in page", async () => {
+    const fetchMock = mockApi({ ...pharmacist, onboarded_at: NOW }, (url) =>
+      url === "/api/auth/change-password" ? { status: 204 } : undefined,
+    );
+    renderApp("/settings");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Current password"), `${PASSWORD}old`);
+    await user.type(screen.getByLabelText("New password"), PASSWORD);
+    await user.type(screen.getByLabelText("Repeat the new password"), PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+    expect(await screen.findByText(/Your password was changed/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
+    expect(sentBody(fetchMock, "/api/auth/change-password")).toEqual({
+      current_password: `${PASSWORD}old`,
+      new_password: PASSWORD,
+    });
   });
 });
 

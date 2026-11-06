@@ -27,6 +27,9 @@ export type InvitationCreated = InvitationPreview & { id: string; token: string;
 const ME_KEY = ["auth", "me"] as const;
 /** Set while signed in, so a later 401 can be shown as "session expired". */
 export const SESSION_FLAG = "ll_had_session";
+/** SESSION_FLAG values that make sign-in confirm why the session ended instead. */
+export const PASSWORD_CHANGED = "password_changed";
+export const SIGNED_OUT_EVERYWHERE = "signed_out_everywhere";
 
 async function fetchMe(): Promise<User | null> {
   try {
@@ -105,23 +108,52 @@ export function useResetPassword() {
   });
 }
 
+function useSignedOut() {
+  const qc = useQueryClient();
+  return () => {
+    localStorage.removeItem(SESSION_FLAG);
+    qc.setQueryData(ME_KEY, null);
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
+  };
+}
+
+// Success signs the account out everywhere; the sign-in guard then shows the confirmation.
+export function useChangePassword() {
+  const onSignedOut = useSignedOut();
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) =>
+      api<void>("/api/auth/change-password", { method: "POST", json: body }),
+    onSuccess: () => {
+      onSignedOut();
+      localStorage.setItem(SESSION_FLAG, PASSWORD_CHANGED);
+    },
+  });
+}
+
+export function useSignOutEverywhere() {
+  const onSignedOut = useSignedOut();
+  return useMutation({
+    mutationFn: () => api<void>("/api/auth/sign-out-everywhere", { method: "POST" }),
+    onSuccess: () => {
+      onSignedOut();
+      localStorage.setItem(SESSION_FLAG, SIGNED_OUT_EVERYWHERE);
+    },
+  });
+}
+
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { organisation: string | null; onboarded: boolean }) =>
+    mutationFn: (body: { full_name?: string; organisation: string | null; onboarded: boolean }) =>
       api<User>("/api/auth/me", { method: "PATCH", json: body }),
     onSuccess: (user) => qc.setQueryData(ME_KEY, user),
   });
 }
 
 export function useLogout() {
-  const qc = useQueryClient();
+  const onSignedOut = useSignedOut();
   return useMutation({
     mutationFn: () => api<void>("/api/auth/logout", { method: "POST" }),
-    onSettled: () => {
-      localStorage.removeItem(SESSION_FLAG);
-      qc.setQueryData(ME_KEY, null);
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
-    },
+    onSettled: onSignedOut,
   });
 }
