@@ -1,6 +1,6 @@
 # Data sources
 
-Status: **no real reference data yet.** Everything below marked TODO must be filled in, and every
+Status: **source-linked EMA draft data added; expert verification pending.** Everything below marked TODO must be filled in, and every
 reference row checked by our pharmacognosy mentor, before results are shown as anything but a sample.
 
 ## Reference preparations (`reference_preparations`)
@@ -31,3 +31,14 @@ reference row checked by our pharmacognosy mentor, before results are shown as a
 ## Fonts
 
 - IBM Plex Sans and IBM Plex Mono, SIL Open Font License 1.1, loaded from Google Fonts.
+
+## EMA draft dataset (2026-11-05)
+
+`data/reference/ema-draft.json` contains seven selected preparations for three herbs. Each row records a direct final-monograph URL, document identifier, page/section, evidence category and an expert-review note. European Medicines Agency is the source; these structured entries are our transcription, not an EMA-approved dataset. The PDF title pages authorise reproduction with source acknowledgement. Preserve attribution and review any third-party material separately.
+
+Sources:
+- https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-hypericum-perforatum-l-herba-revision-1_en.pdf
+- https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-ginkgo-biloba-l-folium_en.pdf
+- https://www.ema.europa.eu/en/documents/herbal-monograph/final-european-union-herbal-monograph-matricaria-recutita-l-flos-first-version_en.pdf
+
+This is partial preparation coverage, not a complete monograph database. Traditional-use rows must not be interpreted as clinical-trial evidence. Plant-name mappings are retained unchecked candidates. `sample.json` remains the original demo/test fixture. Importing the draft does not delete previously imported sample rows; review those separately before using an existing database.

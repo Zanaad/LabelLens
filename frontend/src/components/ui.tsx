@@ -6,12 +6,12 @@ import { t } from "../i18n";
 import { AlertIcon, ClockIcon, CloseIcon, EyeIcon, InfoIcon } from "./icons";
 
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-control rounded-control border font-sans text-base text-center no-underline disabled:opacity-60 disabled:cursor-not-allowed";
+  "ll-button inline-flex items-center justify-center gap-2 min-h-control rounded-control border font-sans text-base text-center no-underline disabled:opacity-60 disabled:cursor-not-allowed";
 const variants = {
   primary:
     "px-[18px] py-2.5 border-accent bg-accent text-on-accent font-semibold hover:bg-accent-hover hover:text-on-accent",
   secondary:
-    "px-4 py-2.5 border-border-2 bg-surface text-text font-medium hover:bg-surface-2 hover:text-text",
+    "px-4 py-2.5 border-border bg-surface text-text font-medium hover:bg-surface-2 hover:text-text",
 };
 type Variant = keyof typeof variants;
 
@@ -36,7 +36,7 @@ export function ButtonLink({
 }
 
 export const inputClass =
-  "w-full min-h-control px-3 py-2.5 rounded-control border border-border-2 bg-surface text-text text-base";
+  "ll-input w-full min-h-control px-3 py-2.5 rounded-control border border-border-2 bg-surface text-text text-base";
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: ReactNode;

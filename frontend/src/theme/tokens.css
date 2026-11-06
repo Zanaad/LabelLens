@@ -2,20 +2,20 @@
    cannot, mismatch, missing) must always be paired with an icon and text. */
 
 :root {
-  --ll-bg: #f6f8f7;
+  --ll-bg: #f6f5f0;
   --ll-surface: #ffffff;
-  --ll-surface-2: #eef2f1;
-  --ll-border: #d5dddb;
-  --ll-border-2: #a9b7b4;
-  --ll-text: #14201e;
-  --ll-muted: #4a5755;
-  --ll-accent: #0d5c57;
-  --ll-accent-hover: #0a4a46;
-  --ll-accent-weak: #e1efec;
+  --ll-surface-2: #eeefe8;
+  --ll-border: #dcded3;
+  --ll-border-2: #a4ada0;
+  --ll-text: #1d2923;
+  --ll-muted: #526058;
+  --ll-accent: #315f4b;
+  --ll-accent-hover: #244c3b;
+  --ll-accent-weak: #e3eee5;
   --ll-on-accent: #ffffff;
-  --ll-link: #0d5c57;
-  --ll-link-hover: #083f3b;
-  --ll-focus: #0a4a46;
+  --ll-link: #315f4b;
+  --ll-link-hover: #204633;
+  --ll-focus: #244c3b;
 
   --ll-match-fg: #0a4f4a;
   --ll-match-bg: #e0f0ec;
@@ -35,31 +35,31 @@
   --ll-shade-1: #e0f0ec;
   --ll-shade-2: #a8d3cb;
   --ll-shade-3: #3f8c82;
-  --ll-shade-4: #0d5c57;
+  --ll-shade-4: #315f4b;
   --ll-photo: #2b3332;
   --ll-backdrop: rgb(10 20 19 / 0.38); /* behind dialogs and drawers, both themes */
   /* Validation charts: LabelLens vs baselines (pair checked with the dataviz validator) */
   --ll-chart-main: #3f8c82;
-  --ll-chart-context: #a9b7b4;
+  --ll-chart-context: #a4ada0;
 
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --ll-bg: #0e1615;
-  --ll-surface: #141e1d;
-  --ll-surface-2: #1b2726;
-  --ll-border: #2c3b39;
-  --ll-border-2: #46605c;
-  --ll-text: #e5edeb;
-  --ll-muted: #a6b4b1;
-  --ll-accent: #5cc3b7;
-  --ll-accent-hover: #7fd6cb;
-  --ll-accent-weak: #173734;
-  --ll-on-accent: #062420;
-  --ll-link: #7fd6cb;
+  --ll-bg: #111a16;
+  --ll-surface: #19251e;
+  --ll-surface-2: #233128;
+  --ll-border: #34483a;
+  --ll-border-2: #58705d;
+  --ll-text: #eaf0e9;
+  --ll-muted: #adbcad;
+  --ll-accent: #a5d8ae;
+  --ll-accent-hover: #c2e5c7;
+  --ll-accent-weak: #294536;
+  --ll-on-accent: #111a16;
+  --ll-link: #c2e5c7;
   --ll-link-hover: #a9e7df;
-  --ll-focus: #9be3d9;
+  --ll-focus: #d4efcf;
 
   --ll-match-fg: #8edbd0;
   --ll-match-bg: #11312d;
@@ -78,10 +78,10 @@
   --ll-shade-1: #16302d;
   --ll-shade-2: #1f5550;
   --ll-shade-3: #3c8e85;
-  --ll-shade-4: #7fd6cb;
+  --ll-shade-4: #c2e5c7;
   --ll-photo: #0a0f0e;
-  --ll-chart-main: #5cc3b7;
-  --ll-chart-context: #46605c;
+  --ll-chart-main: #a5d8ae;
+  --ll-chart-context: #58705d;
 
   color-scheme: dark;
 }

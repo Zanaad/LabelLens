@@ -7,6 +7,7 @@ import { AdminPage } from "../pages/AdminPage";
 import { AnnotationEditorPage, AnnotationsPage } from "../pages/AnnotationsPage";
 import { ReviewDetailPage, ReviewQueuePage } from "../pages/ExpertReviewPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { MethodsPage } from "../pages/MethodsPage";
 import { MyScansPage } from "../pages/MyScansPage";
 import { OnboardingPage } from "../pages/OnboardingPage";
 import { PatientPage } from "../pages/PatientPage";
@@ -68,7 +69,7 @@ export function App() {
             </Suspense>
           }
         />
-        <Route path="/methods" element={<PlaceholderPage title="nav.methods" />} />
+        <Route path="/methods" element={<MethodsPage />} />
         <Route path="/settings" element={<PlaceholderPage title="account.settings" />} />
       </Route>
 

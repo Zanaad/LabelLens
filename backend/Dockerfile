@@ -10,6 +10,7 @@ RUN pip install .
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY docker-entrypoint.sh ./
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 RUN useradd --create-home --uid 1000 labellens && mkdir -p /data/storage && chown labellens /data/storage
 USER labellens

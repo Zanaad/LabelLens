@@ -14,7 +14,7 @@ const ROLE_ICONS = { pharmacist: CapsuleIcon, expert: ReviewIcon, admin: KeyIcon
 function RoleBadge({ role }: { role: Role }) {
   const Icon = ROLE_ICONS[role];
   return (
-    <span className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border border-accent bg-accent-weak px-2 py-0.5 text-xs font-semibold text-text">
+    <span className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-inner bg-surface-2 px-2 py-0.5 text-xs font-semibold text-text">
       <Icon />
       {t(`role.${role}`)}
     </span>
@@ -30,7 +30,7 @@ function AccountMenu({ user }: { user: User }) {
     <details className="relative">
       <summary
         aria-label={t("account.menuFor", { name: user.full_name })}
-        className="flex min-h-control cursor-pointer items-center gap-2.5 rounded-control border border-border-2 bg-surface py-1 pr-2.5 pl-1 hover:bg-surface-2"
+        className="flex min-h-control cursor-pointer items-center gap-2.5 rounded-control border border-border bg-surface py-1 pr-2.5 pl-1 hover:bg-surface-2"
       >
         <span
           aria-hidden="true"
@@ -70,9 +70,9 @@ export function AppShell({ user }: { user: User }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="no-print relative z-20 border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-shell flex-wrap items-center gap-x-5 gap-y-2 px-6 py-2.5">
+    <div className="ll-app flex min-h-screen flex-col">
+      <header className="ll-header no-print relative z-20 border-b border-border bg-surface">
+        <div className="ll-header-inner mx-auto flex max-w-shell flex-wrap items-center gap-x-5 gap-y-2 px-6 py-2.5">
           <Brand to={ROLE_HOME[user.role]} />
           <button
             type="button"
@@ -87,7 +87,7 @@ export function AppShell({ user }: { user: User }) {
           <nav
             id="main-nav"
             aria-label={t("nav.main")}
-            className={`${menuOpen ? "flex" : "hidden"} w-full min-w-0 flex-col gap-0.5 md:flex md:w-auto md:flex-auto md:flex-row md:flex-wrap`}
+            className={`ll-navigation ${menuOpen ? "flex" : "hidden"} w-full min-w-0 flex-col gap-0.5 md:flex md:w-auto md:flex-auto md:flex-row md:flex-wrap`}
           >
             {navFor(user.role).map((item) => {
               const active = item.active ? item.active.test(pathname) : pathname.startsWith(item.to);
@@ -106,14 +106,14 @@ export function AppShell({ user }: { user: User }) {
               );
             })}
           </nav>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="ll-account-controls flex flex-wrap items-center gap-2">
             <DisclaimerPill />
             <ThemeToggle />
             <AccountMenu user={user} />
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-shell flex-[1_0_auto] px-6 pt-8 pb-16">
+      <main className="ll-main mx-auto w-full max-w-shell flex-[1_0_auto] px-6 pt-8 pb-16">
         <Outlet />
       </main>
       <Footer />

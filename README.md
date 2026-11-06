@@ -61,7 +61,7 @@ Load the reference table (studied preparations and plant names). Running it agai
 changes:
 
 ```bash
-docker compose exec backend python -m app.cli import-reference /data/reference/sample.json
+docker compose exec backend python -m app.cli import-reference /data/reference/ema-draft.json
 ```
 
 ## Label reading
@@ -69,6 +69,19 @@ docker compose exec backend python -m app.cli import-reference /data/reference/s
 By default (`EXTRACTION_PROVIDER=cached`) LabelLens replays saved readings from
 `data/extraction_cache/`, so it runs without an API key or cost. In this mode only the three
 example labels on the Scan page can be read; their saved readings are hand-written fixtures.
+
+To read new label photos or pasted text with Groq's free API, create a key at
+[GroqCloud](https://console.groq.com/keys), then set these in `.env`:
+
+```bash
+EXTRACTION_PROVIDER=groq
+GROQ_MODEL=qwen/qwen3.8-27b
+GROQ_API_KEY=                  # your private GroqCloud key
+```
+
+Run `docker compose up -d --build backend`. Keep the key only in `.env`, not `.env.example`.
+Groq's free tier has rate limits; check your account's limits before a demo. No paid tier is
+selected automatically. Do not scan labels containing patient or personal information.
 
 To read real labels with Claude, set these in `.env` and restart:
 
@@ -141,8 +154,8 @@ docker run --rm -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm -v "$PWD":/ap
 
 Reference preparations come from EU herbal monographs published by the European Medicines Agency (Committee on Herbal Medicinal Products,
 HMPC) and the studies they cite. The reference table in this repository
-(`data/reference/sample.json`) currently contains **placeholder rows only** (`verified=false`,
-values taken from the design prototype); real rows are added and checked by a pharmacognosy
+(`data/reference/ema-draft.json`) contains **seven source-linked draft rows** (`verified=false`,
+transcribed from final EMA monographs); these rows still need checking by a pharmacognosy
 mentor. The import refuses unchecked rows without a `TODO(expert)` note, and the result page
 says "sample reference data" while any row it used is unchecked.
 
@@ -170,8 +183,8 @@ Validation measures how often LabelLens is right on labels whose correct answers
    numbers come with a 95% confidence range.
 
 Labels without a saved reading are left out of the field and end-to-end numbers. With an API key
-in `EXTRACTION_API_KEY`, `python -m app.cli fetch-readings` reads them (and the plain-prompt
-baseline) through the paid Claude API; the readings are saved for later runs.
+with the configured live provider, `python -m app.cli fetch-readings` reads them (and the
+plain-prompt baseline) through Groq or Claude; the readings are saved for later runs.
 
 Every number used in the pitch must come from a stored run over Final labels.
 

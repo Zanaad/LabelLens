@@ -54,6 +54,7 @@ export function ScanPage() {
   const create = useCreateScan();
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  const uploadRef = useRef<HTMLElement>(null);
   const [paste, setPaste] = useState(false);
   const [text, setText] = useState("");
   const [source, setSource] = useState<{ name: string; size?: number } | null>(null);
@@ -164,11 +165,11 @@ export function ScanPage() {
           onDragOver={(e) => (e.preventDefault(), setDragging(true))}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`${card} flex min-h-[380px] flex-col items-center justify-center gap-4 border-2 border-dashed px-6 py-10 text-center ${
+          className={`ll-upload-zone ${card} flex min-h-[380px] flex-col items-center justify-center gap-4 border-2 border-dashed px-6 py-10 text-center ${
             dragging ? "border-accent bg-accent-weak" : "border-border-2"
           }`}
         >
-          <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-accent-weak text-accent">
+          <span className="ll-upload-icon inline-flex h-16 w-16 items-center justify-center rounded-full bg-accent-weak text-accent">
             <UploadIcon size={30} />
           </span>
           <h2 className="m-0 text-[22px] leading-[1.3] font-semibold">{t("scan.dropTitle")}</h2>
@@ -226,8 +227,8 @@ export function ScanPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-2 pt-2">
+    <div className="ll-scan flex flex-col gap-6">
+      <section className="ll-scan-hero flex flex-col gap-2 pt-2">
         <Eyebrow>{t("scan.eyebrow")}</Eyebrow>
         <h1 className="m-0 max-w-[26ch] text-4xl leading-[1.15] font-semibold tracking-[-0.015em] text-balance">
           {t("scan.title")}
@@ -235,8 +236,39 @@ export function ScanPage() {
         <p className="m-0 max-w-[64ch] text-lg text-muted">{t("scan.intro")}</p>
       </section>
 
-      <div className="flex flex-wrap items-stretch gap-6">
-        <section aria-label={t("scan.uploadLabel")} className="flex min-w-0 flex-[3_1_520px] flex-col gap-3">
+      <section aria-labelledby="ex-title" className="ll-scan-examples flex flex-col gap-3">
+        <div>
+          <h2 id="ex-title" className="m-0 text-xl font-semibold">
+            {t("scan.examplesTitle")}
+          </h2>
+          <p className="m-0 text-muted">{t("scan.examplesIntro")}</p>
+        </div>
+        <div className="flex flex-wrap gap-4">
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex.name}
+              type="button"
+              disabled={create.isPending}
+              onClick={() => {
+                submit({ text: ex.text });
+                requestAnimationFrame(() => uploadRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+              }}
+              className={`ll-example ${card} flex min-w-0 flex-[1_1_260px] flex-col items-start gap-1 border-border p-5 text-left hover:bg-surface-2`}
+            >
+              <span className="font-semibold">{t(ex.name)}</span>
+              <span className="text-sm text-muted">{t(ex.desc)}</span>
+              <span className="mt-2 inline-flex items-center gap-1.5 font-semibold text-link">
+                {t("scan.exampleTry")}
+                <ArrowRightIcon />
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+
+      <div className="ll-scan-workspace flex flex-wrap items-stretch gap-6">
+        <section ref={uploadRef} aria-label={t("scan.uploadLabel")} className="flex min-w-0 flex-[3_1_520px] flex-col gap-3">
           {body}
         </section>
         <aside className="flex min-w-0 flex-[2_1_300px] flex-col gap-4">
@@ -272,33 +304,6 @@ export function ScanPage() {
           </section>
         </aside>
       </div>
-
-      <section aria-labelledby="ex-title" className="flex flex-col gap-3">
-        <div>
-          <h2 id="ex-title" className="m-0 text-xl font-semibold">
-            {t("scan.examplesTitle")}
-          </h2>
-          <p className="m-0 text-muted">{t("scan.examplesIntro")}</p>
-        </div>
-        <div className="flex flex-wrap gap-4">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex.name}
-              type="button"
-              disabled={create.isPending}
-              onClick={() => (window.scrollTo({ top: 0, behavior: "smooth" }), submit({ text: ex.text }))}
-              className={`${card} flex min-w-0 flex-[1_1_260px] flex-col items-start gap-1 border-border p-5 text-left hover:bg-surface-2`}
-            >
-              <span className="font-semibold">{t(ex.name)}</span>
-              <span className="text-sm text-muted">{t(ex.desc)}</span>
-              <span className="mt-2 inline-flex items-center gap-1.5 font-semibold text-link">
-                {t("scan.exampleTry")}
-                <ArrowRightIcon />
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <input ref={fileInput} type="file" accept="image/jpeg,image/png" hidden onChange={onPick} />
       <input ref={cameraInput} type="file" accept="image/jpeg,image/png" capture="environment" hidden onChange={onPick} />

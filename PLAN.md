@@ -14,131 +14,125 @@ the herbal preparations studied in EU monographs, and gives one of three answers
 It only checks what is printed on the label, not what is inside the product. It never says a
 product is "safe", never gives dosing advice, and never treats missing information as good news.
 
-## Where we are
+## Where we are (6 Nov 2026)
 
 | Step | What it includes | Status |
 | --- | --- | --- |
-| 0 | Project setup, accounts and login, roles (pharmacist, expert, admin), page layout, design colours | **Done** |
-| 1 | Upload a label photo or paste its text, the AI reads it, the pharmacist checks each field, onboarding | **Done**  |
-| 2 | Comparison rules, table of studied preparations, result screen (verdict, what's missing, sources) | **Done**  |
-| 3 | My scans, scan detail, share link for patients, printable summary (compare postponed) | **Done** |
-| 4 | Expert review queue, admin pages, validation labels and runs, password reset by email | **Done** |
-| 5 | Make it real: real data, real label reading, nothing demo-only, running on one EC2 server | Next |
-| 6 | Polish, demo data, final numbers for the pitch | After 5 |
+| 0 | Project setup, login, roles, and design | **Done** |
+| 1 | Photo or text input, AI label reading, and pharmacist field review | **Done** |
+| 2 | Reference table, comparison rules, verdict, missing details, and sources | **Done** |
+| 3 | History, patient link, and printable one-page summary | **Done** |
+| 4 | Expert review queue, admin tools, validation workflow, and email password reset | **Done** |
+| 5 | Source-linked EMA draft rows and live label reading | **Done for the local prototype** |
+| 6 | Real-label validation, demo polish, and deployment | **In progress** |
 
-Rough schedule: Mon step 1, Tue step 2, Wed step 3, Thu step 4, Fri step 5, weekend step 6 and rehearsal.
+Step 5 is complete as an implementation milestone: the local app can read new photos and pasted
+text through Groq, let a pharmacist correct fields, and compare them with source-linked EMA draft
+rows. This does **not** mean the extracted fields or the reference transcription have been
+independently verified. The result page labels unchecked reference rows as sample data.
 
-## What is left (steps 5 and 6)
+### What we use now
 
-The goal of step 5 is an app that works for real users, with no hardcoded demo shortcuts and
-nothing paid beyond the AI key. What is hardcoded or unfinished today:
+- **AI label reading:** GroqCloud's `qwen/qwen3.8-27b` vision model through the backend, with
+  `EXTRACTION_PROVIDER=groq` and a private `GROQ_API_KEY` in `.env`. The key is never sent to the
+  browser or committed. The free tier has rate limits. Claude remains an optional paid provider;
+  cached mode replays saved readings without an API call.
+- **Evidence data:** `data/reference/ema-draft.json`, seven source-linked draft preparations for
+  Ginkgo, German chamomile, and St John's wort, transcribed from EMA monographs. The older
+  `sample.json` is a fixture. Check the active database's rows before making a claim about its
+  exact contents; imports upsert and do not remove old rows.
+- **Decision path:** the AI extracts label fields; the pharmacist checks and corrects them; the
+  deterministic rules compare plant, part, preparation, DER, and solvent with the reference
+  rows. The AI does not choose the verdict. Dose and marker are displayed but not compared.
+- **Output:** a cautious verdict, field-by-field comparison, source links, missing-detail
+  questions, patient link, and browser-printable one-page summary.
 
-| Gap | Today | Planned fix |
-| --- | --- | --- |
-| Studied preparations | 7 placeholder rows copied from the design | Rows drafted from the real EMA monographs for the demo herbs, each with its source link, still marked unchecked until the mentor confirms |
-| Label reading | Demo mode replays 3 hand-written readings | Production runs the Claude provider, so any photo or text can be read |
-| Example labels | Their text is written into the Scan page code | Moved out of the code; shown only in demo mode, never in production |
-| Pages without content | About, Methods and Settings are placeholders | Write them: how it works and its limits, and account settings (change password) |
-| Fonts | Loaded from Google Fonts | Hosted by us (no visitor data sent to Google) |
-| Running it | Compose is set up for a laptop, ports only on localhost | One EC2 server: HTTPS with a free certificate, restart on reboot, database backups |
-| Real numbers | 3 test labels | 30–50 labels annotated by an expert, then a stored validation run |
+### What remains
 
-What stays as it is on purpose: the rate limit is kept in memory, which is fine with a single
-server (see Decisions, step 0).
+1. **Audit the draft data ourselves.** Reopen each cited EMA monograph and record who checked each
+   row, the date, the passage, and any correction. Keep `verified=false` and the sample warning
+   unless a qualified reviewer actually verifies a row. No expert is required to finish the app
+   or submit the hackathon prototype; do not claim expert validation we have not obtained.
+2. **Test real product photos and record outcomes.** Save the original image/source, the AI's
+   fields, pharmacist corrections, and the final verdict. We have already tried real Ginkgo and
+   chamomile packages: the Ginkgo result could not resolve the missing DER/solvent, and one
+   chamomile reading mistook `25g` for a preparation. A real image and a successful API call are
+   not accuracy measurements. Keep fictional examples separate from this test set.
+3. **Run validation with honest ground truth.** A team member can transcribe clearly printed
+   fields and have a second member cross-check them. For verdict accuracy, record who assigned
+   expected answers and their basis; report counts and uncertainty. If there are too few checked
+   labels, show examples and limitations instead of an accuracy percentage. Expert review is an
+   optional later improvement, not a dependency for the prototype.
+4. **Improve the real-photo path.** Groq sometimes returns `json_validate_failed` on a valid
+   image; the app currently shows a generic unavailable message. Fix the retry/error handling
+   and test small-print labels. Prevent outputs such as the literal word `none` or a value with
+   unrelated quoted evidence from being counted as a stated field.
+5. **Finish demo and deployment work.** Decide whether to keep fictional example labels clearly
+   marked in the app, complete any remaining About/Settings content, and deploy with HTTPS,
+   secure production configuration, backups, and a smoke test. The current Compose setup is for
+   local use. Record the EMA reuse terms before publishing reference data in a public repository.
 
-### Features to add after step 5
+### Possible later features
 
-- **Question for the manufacturer.** When a label leaves details out, the result already lists
-  what to ask. A button turns those questions into a short message the pharmacist can copy or
-  email, naming the product and batch. It is filled from a template, so it costs nothing to run.
-- **Expert corrections improve the measurements.** When an expert disagrees with a verdict, one
-  click turns that scan into a validation label draft, with the expert's verdict as the expected
-  answer. It counts only after an admin marks it Final, so the numbers stay honest.
-- **AI-assisted monograph reading (the main bet).**
-  - An admin uploads an EMA monograph PDF. Claude proposes the studied preparations (herb, plant
-    part, preparation type, ratio, solvent, evidence level), each with the passage it was read
-    from.
-  - An expert approves, edits or rejects every proposed row. Nothing reaches the reference table
-    unapproved, and approved rows are marked checked by that expert (never invented content).
-  - This answers "who fills the table?" and shows how the table grows past what a team can type.
-  - It costs a few cents per monograph in API fees. Needs the Anthropic key (see "What the team
-    has to do").
-- **MCP server (decision pending).**
-  - A small read-only tool that lets AI assistants ask LabelLens "does a studied preparation match
-    this herb and preparation?" and get the answer with its source, or "cannot say", instead of
-    inventing herbal claims.
-  - It uses the existing rules engine and the reference table only; it carries no scan, patient or
-    user data.
-  - It needs the official `mcp` library, a new dependency, so it waits for the team's approval.
-    It is only worth showing once the table has real rows.
-
-Order: real data and real label reading (step 5), then monograph reading, then the two small
-features, then the MCP server if there is time. Cut from the end first.
-
-## What the team has to do
-
-Things I can't do for you:
-
-1. **Anthropic API key and budget.** Create an account at console.anthropic.com, add a small
-   amount of credit, set a monthly spending limit, create a key, and put it in `.env` as
-   `EXTRACTION_API_KEY` (never in Git). Without it only the three demo labels can be read.
-2. **Gmail app password** for password-reset emails (see README, "Email").
-3. **The mentor:** confirms the reference rows against the monographs, and sets the expected
-   verdict for the validation labels.
-4. **Validation labels:** someone photographs 30–50 herbal product labels (no personal data in the
-   photos) and uploads them under Admin → Validation labels.
-5. **AWS:** one EC2 instance (at least 2 GB of memory is my guess, since the images are built on
-   it), with ports 80 and 443 open to everyone and SSH only from your own address. Check the
-   current price of a public IP address on your account.
-6. **A domain name** for HTTPS. A free one from a service like DuckDNS is enough; the certificate
-   is free from Let's Encrypt. Without HTTPS the sign-in cookie can't be marked secure, and the
-   app refuses to start in production without that.
-7. **EMA reuse terms:** someone reads EMA's legal notice (or asks EMA) before the reference data
-   is published, and fills in the licence line in DATA_SOURCES.md.
+- A copyable manufacturer-question message based on the missing-detail checklist.
+- A way to turn reviewed corrections into validation-label drafts.
+- Assisted monograph transcription with cited passages and human approval before rows become
+  checked. This is optional and is not needed for the hackathon prototype.
+- A read-only MCP tool over the reference table, if there is time and a real use case.
 
 ## How label reading works
 
-There are two modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
+There are three modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
 
 - **Demo mode (`cached`, the default).** No AI call and no cost. The app replays saved readings
   from `data/extraction_cache/`. Right now only the three example labels on the Scan page have
   saved readings, so uploading a real photo shows a "demo mode" message.
-- **Real mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
+- **Groq mode (`groq`).** The photo or text is sent to the Groq-hosted Qwen vision model. Set
+  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier.
+- **Claude mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
   label. This needs an **Anthropic API key** (a paid key from console.anthropic.com) in
   `EXTRACTION_API_KEY`. Every reading is saved, so it can be replayed later for free.
 
 The default model is **Claude Opus 5.5** (`claude-opus-5-5`). To use the cheaper Claude Sonnet 5.5,
 set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
-## Questions still open
+## Decisions and risks to communicate
 
-1. **API key and budget.** Who creates the Anthropic account, and how much can we spend? Until
-   then only demo mode works.
-2. **The "differs" result.** Sometimes a label clearly describes a different preparation from
-   every studied one. For now it is shown like "Cannot say", with the line "The label describes a
-   different preparation from the ones studied" (built in step 2). Check with the mentor.
-3. **Email account for sending.** Password reset emails are sent through Gmail with an app
-   password (free), set in `.env`. Which Gmail account does the team use? Revisit this if the
-   app gets many users (Gmail allows about 500 emails a day).
-4. **Validation labels.** Who photographs the 30–50 real labels, who types in the correct answers,
-   and which expert sets the expected verdicts? The pitch numbers depend on this (see risk 4).
-
-## Biggest risks
-
-1. **The table of studied preparations is not ready.** Results are only as good as this table,
-   and a mentor has to check every row. Plan: build the table now with sample rows marked
-   "not verified", and have the app say so until the mentor checks them. Ask the mentor early.
-2. **The AI misreads real labels** (small print, glare, several languages on one box). Plan: the
-   pharmacist checks every field before any result, each field shows the exact label text it came
-   from, and we measure accuracy honestly.
-3. **Over-claiming.** Anything that sounds like "this is safe" or "this works" hurts the project.
-   Plan: tests block the word "safe", every page has a disclaimer, and a pharmacist on the team
-   checks the patient view.
-4. **Too few labels to measure accuracy.** Plan: photograph and annotate 30–50 labels from day 1,
-   and always report how many labels a number is based on.
-5. **Too much for one week.** Plan: compare, PDF export and admin polish are cut first.
+- **Scope:** a result compares label wording with described preparations; it does not test the
+  product, prove efficacy, or give clinical advice.
+- **Reference status:** the EMA draft rows have source links but remain unchecked. Their status
+  is shown in the UI. Lack of an external expert does not make step 5 unfinished; it limits the
+  claim we can make about reference accuracy.
+- **AI reading:** small print, glare, and multilingual packaging can produce wrong or invented
+  fields. Pharmacist review is part of the workflow, and real-label validation remains step 6.
+- **Free API:** Groq's quota and structured-output failures can interrupt a demo. Keep clearly
+  marked fictional text examples available and test a real photo before presenting.
+- **Publication:** check EMA reuse terms and the active database content before public release.
 
 ## Decisions made
+
+### Shared interface refresh
+
+- Refined shared navigation, typography, controls, tables and authentication layouts. Desktop uses a two-row top navigation; mobile uses a compact menu. Existing role permissions remain. Warm neutral surfaces and restrained teal accents use the existing light/dark tokens. No new dependencies.
+
+
+### Step 5 Groq reading (6 Nov)
+
+- Added a Groq provider for text and JPEG labels using the existing extraction schema and cache.
+  The configured local provider is Groq with `qwen/qwen3.8-27b`; the key stays in the backend.
+- Live calls succeeded for fictional text, a generated test photo, and real product photos used
+  in the UI. These prove the integration works, not that extraction is reliably accurate.
+- A real Ginkgo image also triggered Groq `json_validate_failed` with strict structured output;
+  this is recorded above as remaining robustness work.
+
+### Step 5 data work (5 Nov)
+
+- Added `data/reference/ema-draft.json`: seven preparations across Hypericum, Ginkgo and Matricaria, transcribed from final EMA monographs with document identifiers and page/section locators. All remain `verified=false`.
+- The old `sample.json` remains a test/demo fixture. Use the EMA draft for a new local reference table; the importer upserts and does not remove previous sample rows. Do not combine both datasets in an existing database without reviewing obsolete rows in Admin.
+- Corrected the Hypericum source (the old landing URL describes a combination product), and specified Matricaria liquid extract h as DER 1:1 and ethanol 55% V/V.
+- Coverage is deliberately partial. Compound solvents, solvent ranges and other preparations need further modelling/review. Marker specifications, route and indication are not compared; matching fields is not full monograph compliance.
+- Name mappings remain unchecked candidates. Live extraction and real-photo trials are now in place; independent reference auditing and recorded validation results remain outstanding.
+
 
 ### Step 4 (5 Nov)
 
@@ -179,7 +173,7 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
   - Each run stores a copy of the exact answers it was scored against, so pitch numbers can be
     traced back.
   - The plain-prompt baseline needs its own saved readings:
-    `python -m app.cli fetch-readings` creates them, which calls the paid API.
+    `python -m app.cli fetch-readings` creates them with the configured live API.
   - This replaces the planned `validation/run_validation.py` script: one code path, used by both
     the page and the command line.
 - **Charts** use Recharts (agreed), loaded only on the Validation page so other pages stay fast.
@@ -312,6 +306,7 @@ every screen. The colours from the design are in `frontend/src/theme/tokens.css`
 | Onboarding step 3 | Language choice | App is English only | Left out |
 | "Matches" colour | Teal | Verdicts must not be green | Kept: it's teal, not green, and always comes with an icon and text. Say if you want it changed |
 
-Screens the design mentions but doesn't draw: accept invitation, forgot password, settings, about,
-reference table, validation, methods, compare, expert review queue, admin. We built accept
-invitation and forgot password in the same style as sign-in; the rest are placeholders for now.
+Screens the original design mentions but does not draw include accept invitation, forgot password,
+settings, about, reference table, validation, methods, compare, expert review queue, and admin.
+The current app implements invitation, password reset, reference, validation, methods, expert
+review, and admin screens. Compare remains postponed; About and Settings need a final content pass.

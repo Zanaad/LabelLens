@@ -27,7 +27,7 @@ export function DisclaimerPill() {
   return (
     <span
       title={t("app.disclaimer")}
-      className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-cannot-bd bg-cannot-bg px-3 py-1.5 text-eyebrow font-semibold tracking-normal text-cannot-fg"
+      className="ll-disclaimer inline-flex min-h-9 items-center gap-1.5 rounded-full border border-cannot-bd bg-cannot-bg px-3 py-1.5 text-eyebrow font-semibold tracking-normal text-cannot-fg"
     >
       <InfoIcon />
       {t("app.disclaimer")}
