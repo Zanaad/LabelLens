@@ -36,7 +36,7 @@ def reading(**stated: str) -> dict:
 
 
 def save_reading(cache_dir: Path, output: dict, prompt_version: str = PROMPT_VERSION) -> None:
-    model = get_settings().extraction_model
+    model = get_settings().validation_model
     record = {"model": model, "prompt_version": prompt_version, "output": output}
     key = cache_key(LABEL.encode(), model, prompt_version)
     (cache_dir / f"{key}.json").write_text(json.dumps(record))
@@ -130,8 +130,20 @@ def test_validation_run(
     truth = {"plant": "chamomile", "plant_part": "flowers", "preparation_type": "tea"}
     body = {"title": "Meadow Cup", "fields": truth, "status": "final"}
     url = f"/api/annotations/{created['id']}"
-    assert client.put(url, json=body).json()["detail"] == "expected_verdict_required"
-    assert client.put(url, json=body | {"expected_verdict": "partly_matches"}).status_code == 200
+    assert client.put(url, json=body).json()["detail"] == "fields_check_required"
+    saved = client.put(
+        url,
+        json=body | {"expected_verdict": "partly_matches", "fields_checked": True},
+    ).json()
+    assert saved["fields_checked"] is True and saved["checked_by"] == "Admin"
+    checked_at = saved["checked_at"]
+    as_user(client, db, "admin2@example.org", Role.admin)
+    notes_only = client.put(
+        url,
+        json=body | {"expected_verdict": "partly_matches", "fields_checked": True, "notes": "Reviewed"},
+    ).json()
+    assert notes_only["checked_at"] == checked_at
+    assert notes_only["checked_by"] == "Admin"
 
     # The reader got the plant part wrong and invented a batch number.
     wrong = reading(plant="Chamomile", plant_part="leaves", preparation_type="tea", batch="X1")
@@ -150,7 +162,40 @@ def test_validation_run(
     assert m["baselines"]["keyword"]["correct"] == 0  # naive "matches"
     assert m["baselines"]["plain_model"]["correct"] == 1
     assert m["snapshot"][0]["expected_verdict"] == "partly_matches"
+    assert m["snapshot"][0]["checked_at"] is not None
     assert client.get("/api/validation/runs").json()[0]["rules_only"] == 1.0
+
+
+def test_field_only_validation_requires_human_check(
+    client: TestClient, db: Session, cache_dir: Path, tmp_path: Path, monkeypatch
+):
+    client.app.dependency_overrides[get_storage] = lambda: LocalStorage(  # type: ignore[attr-defined]
+        tmp_path / "storage"
+    )
+    as_user(client, db, "admin@example.org", Role.admin)
+    created = client.post("/api/annotations/text", json={"text": LABEL}).json()
+    url = f"/api/annotations/{created['id']}"
+    monkeypatch.setenv("EXTRACTION_PROVIDER", "groq")
+    get_settings.cache_clear()
+    save_reading(cache_dir, reading(plant="chamomile"))
+
+    draft = client.post("/api/validation/runs", json={}).json()["metrics"]
+    assert draft["dataset"]["labels"] == 0
+
+    body = {
+        "title": "Meadow Cup",
+        "fields": {"plant": "chamomile"},
+        "status": "final",
+        "fields_checked": True,
+    }
+    assert client.put(url, json=body).status_code == 200
+    metrics = client.post("/api/validation/runs", json={}).json()["metrics"]
+    assert metrics["dataset"]["labels"] == 1
+    assert metrics["fields"]["plant"]["correct"] == 1
+    assert metrics["versions"]["model"] == get_settings().groq_model
+    assert metrics["verdicts"]["end_to_end"]["total"] == 0
+    unchecked = client.put(url, json={**body, "fields_checked": False})
+    assert unchecked.json()["detail"] == "fields_check_required"
 
 
 def test_field_outcomes_and_confidence_interval():

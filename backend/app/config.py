@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     groq_api_key: str = Field(default="", repr=False)
     extraction_cache_dir: str = "../data/extraction_cache"
 
+    @property
+    def validation_model(self) -> str:
+        return self.groq_model if self.extraction_provider == "groq" else self.extraction_model
+
     # Email (password reset links). Empty SMTP_HOST turns sending off.
     app_base_url: str = "http://localhost:8080"  # start of links inside emails
     smtp_host: str = ""

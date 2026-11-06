@@ -55,6 +55,17 @@ failures retry once and return the provider-unavailable message if they persist.
 Groq readings are reused for an identical image and prompt/model; the chamomile photo succeeded
 on a later attempt and its reading was cached. Live cache files are excluded from Git.
 
+### Hackathon validation workflow (branch `hackathon-validation`)
+
+- The validation run now selects the active Groq model, so it can find saved Groq readings.
+- An admin explicitly confirms every field against the image before a Final label enters the
+  standard report. The checker and time are stored. Field-only checks can be Final without an
+  expected verdict; verdict accuracy remains empty until a reviewed expected verdict exists.
+- Ten real product-label images are local Draft or In review annotations with source notes. Two have saved
+  Groq readings, and seven have limited assistant-entered first-pass fields. None is independently
+  checked, so the standard report has zero labels and no accuracy claim. Third-party image
+  reuse rights need checking before distribution.
+
 ### What remains
 
 1. **Audit the draft data ourselves.** Reopen each cited EMA monograph and record who checked each

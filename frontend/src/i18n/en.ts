@@ -323,14 +323,17 @@ export const en = {
   "annot.prefilled":
     "The fields were filled in by the label reader. Check every one against the label: anything you leave is treated as the right answer.",
   "annot.notPrefilled": "There is no saved reading for this label, so type every field in from the label.",
+  "annot.draftHint": "This is a draft. AI prefill may be incomplete or unavailable. Check every field against the image before marking it Final; a blank field is not yet a checked answer.",
   "annot.fieldsTitle": "Correct answers",
   "annot.fieldsHint": "Copy each value exactly as printed. Leave a field empty if the label doesn't state it.",
   "annot.name": "Label name",
   "annot.expected": "Expected verdict",
   "annot.expectedHint":
-    "The verdict an expert gives for this label. Decide it from the label and the reference table, not from what LabelLens says.",
+    "Optional for checking field reading. Set an expected verdict only when its basis has been independently reviewed against the reference table.",
   "annot.status": "Status",
-  "annot.statusHint": "Only Final labels count in validation runs.",
+  "annot.statusHint": "Only Final labels with checked fields count in standard validation runs.",
+  "annot.confirmFields": "I checked every field against the label photo or text. Empty fields are not stated on the label.",
+  "annot.checkedBy": "Fields checked by {name} on {date}.",
   "annot.notes": "Notes",
   "annot.save": "Save",
   "annot.saved": "Saved.",
@@ -442,6 +445,8 @@ export const en = {
   "val.draftsWarning": "This run includes draft labels, so its numbers are not final and must not be used in the pitch.",
   "val.smallSample":
     "Only {n} labels have an expected verdict, so treat these numbers as rough. The ranges are 95% confidence intervals.",
+  "val.smallFieldSample":
+    "Only {n} checked labels have a saved AI reading. Field results are preliminary; collect more real labels before quoting an accuracy rate.",
   "val.notRead":
     "{n} labels have no saved reading for the current prompt and model, so they are left out of the field and end-to-end numbers.",
   "val.tileVerdict": "Verdict right, end to end",
@@ -920,7 +925,7 @@ export const en = {
   "error.cannot_change_self": "You can't change your own account here.",
   "error.user_inactive": "Reactivate this user first.",
   "error.duplicate_label": "This label is already in the validation labels.",
-  "error.expected_verdict_required": "Set the expected verdict before marking the label Final.",
+  "error.fields_check_required": "Check every field against the label before marking it Final.",
   "error.todo_note_required": "Rows not yet checked need a note containing TODO(expert).",
   "error.ratio_range_invalid": "Fill in both DER values, with the first no larger than the second.",
   "error.duplicate_name": "This plant name is already listed for that Latin name.",

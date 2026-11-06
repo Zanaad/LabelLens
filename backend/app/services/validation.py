@@ -129,12 +129,12 @@ def _expert_ratings(db: Session) -> dict[str, Any]:
 def run_validation(
     db: Session, storage: Storage, *, model: str, cache_dir: str, include_drafts: bool
 ) -> dict[str, Any]:
-    statuses = [AnnotationStatus.final]
-    if include_drafts:
-        statuses += [AnnotationStatus.in_review, AnnotationStatus.draft]
-    labels = db.scalars(
-        select(Annotation).where(Annotation.status.in_(statuses)).order_by(Annotation.created_at)
-    ).all()
+    query = select(Annotation)
+    if not include_drafts:
+        query = query.where(
+            Annotation.status == AnnotationStatus.final, Annotation.checked_at.is_not(None)
+        )
+    labels = db.scalars(query.order_by(Annotation.created_at)).all()
     names = [(n, latin) for n, latin in db.execute(select(PlantName.name, PlantName.latin_name))]
     refs = [
         engine.Reference(id=str(r.id), **{k: getattr(r, k) for k in REF_FIELDS})
@@ -194,6 +194,8 @@ def run_validation(
                 "id": str(a.id),
                 "title": a.title,
                 "status": a.status.value,
+                "checked_by_id": str(a.checked_by_id) if a.checked_by_id else None,
+                "checked_at": a.checked_at.isoformat() if a.checked_at else None,
                 "label_sha256": a.image_sha256,
                 "expected_verdict": expected,
                 "fields": truth,

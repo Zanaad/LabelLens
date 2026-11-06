@@ -3,6 +3,7 @@
 
 import hashlib
 import uuid
+from datetime import UTC, datetime
 from pathlib import PurePath
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
@@ -33,6 +34,7 @@ admin_only = require_roles(Role.admin)
 
 def _out(db: Session, a: Annotation, prefilled: bool = False) -> AnnotationOut:
     annotator = db.get(User, a.annotator_id) if a.annotator_id else None
+    checker = db.get(User, a.checked_by_id) if a.checked_by_id else None
     return AnnotationOut(
         id=a.id,
         title=a.title,
@@ -44,6 +46,9 @@ def _out(db: Session, a: Annotation, prefilled: bool = False) -> AnnotationOut:
         has_image=a.label_ref is not None,
         updated_at=a.updated_at,
         annotator=annotator.full_name if annotator else None,
+        fields_checked=a.checked_at is not None,
+        checked_by=checker.full_name if checker else None,
+        checked_at=a.checked_at,
         prefilled=prefilled,
     )
 
@@ -181,15 +186,23 @@ def update_annotation(
     a = _get(db, annotation_id)
     if set(body.fields) - set(FIELD_KEYS):
         raise HTTPException(422, detail="unknown_field")
-    # A label counts in validation only when its expected verdict is set.
-    if body.status == AnnotationStatus.final and body.expected_verdict is None:
-        raise HTTPException(422, detail="expected_verdict_required")
+    if body.status == AnnotationStatus.final and not body.fields_checked:
+        raise HTTPException(422, detail="fields_check_required")
+    new_fields = {k: (body.fields.get(k) or "").strip()[:500] or None for k in FIELD_KEYS}
+    fields_changed = new_fields != {k: a.fields_json.get(k) for k in FIELD_KEYS}
+    was_checked_final = a.status == AnnotationStatus.final and a.checked_at is not None
     a.title = body.title.strip()
-    a.fields_json = {k: (body.fields.get(k) or "").strip()[:500] or None for k in FIELD_KEYS}
+    a.fields_json = new_fields
     a.expected_verdict = body.expected_verdict
     a.status = body.status
     a.notes = (body.notes or "").strip() or None
     a.annotator_id = admin.id
+    if body.status != AnnotationStatus.final:
+        a.checked_by_id = None
+        a.checked_at = None
+    elif fields_changed or not was_checked_final:
+        a.checked_by_id = admin.id
+        a.checked_at = datetime.now(UTC)
     audit(db, "annotation.update", user_id=admin.id, entity_type="annotation", entity_id=a.id)
     db.commit()
     return _out(db, a)
