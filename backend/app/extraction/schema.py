@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # Order matches the review screen.
 FIELD_KEYS = (
@@ -28,6 +28,17 @@ class ExtractedField(BaseModel):
     status: FieldStatus
     confidence: float = Field(ge=0, le=1)
     evidence: str | None = Field(description="Exact label text the value was copied from")
+
+    @model_validator(mode="after")
+    def check_value(self) -> "ExtractedField":
+        if self.status == FieldStatus.stated:
+            if not self.value or self.value.strip().casefold() in {"none", "null", "n/a"}:
+                raise ValueError("stated field needs a label value")
+            if not self.evidence or not self.evidence.strip():
+                raise ValueError("stated field needs label evidence")
+        elif self.value is not None or self.evidence is not None:
+            raise ValueError("missing or unreadable field must have null value and evidence")
+        return self
 
 
 class PlainLabelExtraction(BaseModel):

@@ -1,11 +1,12 @@
 import base64
 import hashlib
 import json
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import anthropic
@@ -14,6 +15,8 @@ from pydantic import BaseModel
 
 from app.config import get_settings
 from app.extraction.schema import LabelExtraction, PlainLabelExtraction
+
+logger = logging.getLogger(__name__)
 
 # Bump on every prompt change; it is stored with each extraction and part of the cache key.
 PROMPT_VERSION = "2026-11-03.1"
@@ -26,6 +29,7 @@ Rules:
 convert, expand abbreviations or map common plant names to Latin names.
 - Never infer or guess a value that is not printed. If a field is not on the label, set status \
 "not_stated" and value and evidence to null. Absent information is missing, not a default.
+- Use JSON null for absent values, never the strings "none", "null", "N/A" or an empty string.
 - If text for a field is present but you cannot read it reliably, set status "unreadable".
 - evidence is the exact label text the value was copied from (a word, line or phrase).
 - confidence is how sure you are the value was read correctly: about 0.9 or higher for clear \
@@ -231,6 +235,10 @@ class GroqProvider:
 
     def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
         key = cache_key(_input_bytes(image, text), self.model)
+        cached = read_cached(self.cache_dir, key)
+        if cached is not None:
+            fields = LabelExtraction.model_validate(cached)
+            return ExtractionResult(cached, fields, self.name, self.model, key, None)
         started = time.monotonic()
         fields = self._parse(image, text, PROMPT, LabelExtraction)
         output = fields.model_dump(mode="json")
@@ -285,23 +293,44 @@ class GroqProvider:
             },
             method="POST",
         )
-        try:
-            with urlopen(request, timeout=120) as response:  # noqa: S310 - fixed HTTPS endpoint
-                result = json.load(response)
-        except HTTPError as exc:
-            code = (
-                "provider_misconfigured" if exc.code in (401, 403, 404) else "provider_unavailable"
-            )
-            raise ExtractionError(code) from None
-        except (URLError, TimeoutError):
-            raise ExtractionError("provider_unavailable") from None
-        except (ValueError, TypeError):
-            raise ExtractionError("extraction_failed") from None
-        try:
-            raw = json.loads(result["choices"][0]["message"]["content"])
-            return schema.model_validate(raw)
-        except (KeyError, IndexError, TypeError, ValueError):
-            raise ExtractionError("extraction_failed") from None
+        for attempt in range(2):
+            try:
+                with urlopen(request, timeout=120) as response:  # noqa: S310 - fixed HTTPS endpoint
+                    result = json.load(response)
+            except HTTPError as exc:
+                logger.warning("Groq extraction HTTP %s", exc.code)
+                if exc.code in (401, 403, 404):
+                    raise ExtractionError("provider_misconfigured") from None
+                if attempt == 0 and exc.code == 400 and b"json_validate_failed" in exc.read():
+                    request = self._relaxed_request(request, body)
+                    continue
+                raise ExtractionError("provider_unavailable") from None
+            except OSError as exc:
+                logger.warning("Groq extraction connection error: %s", type(exc).__name__)
+                if attempt == 0:
+                    continue
+                raise ExtractionError("provider_unavailable") from None
+            except (ValueError, TypeError):
+                raise ExtractionError("extraction_failed") from None
+            try:
+                raw = json.loads(result["choices"][0]["message"]["content"])
+                return schema.model_validate(raw)
+            except (KeyError, IndexError, TypeError, ValueError):
+                if attempt == 0:
+                    request = self._relaxed_request(request, body)
+                    continue
+                raise ExtractionError("extraction_failed") from None
+        raise ExtractionError("extraction_failed")
+
+    @staticmethod
+    def _relaxed_request(request: Request, body: dict[str, Any]) -> Request:
+        retry_body = {**body, "response_format": {"type": "json_object"}}
+        return Request(  # noqa: S310 - fixed HTTPS endpoint
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=json.dumps(retry_body).encode("utf-8"),
+            headers=dict(request.header_items()),
+            method="POST",
+        )
 
     def _save(self, key: str, prompt_version: str, output: dict[str, Any]) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)

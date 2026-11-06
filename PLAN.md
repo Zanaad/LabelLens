@@ -47,6 +47,14 @@ independently verified. The result page labels unchecked reference rows as sampl
 - **Output:** a cautious verdict, field-by-field comparison, source links, missing-detail
   questions, patient link, and browser-printable one-page summary.
 
+### AI reading reliability (branch `ai-reading-reliability`)
+
+Groq strict-schema failures retry once using JSON-object output, then validate the same field
+schema locally. Placeholder strings presented as stated label values are rejected. Connection
+failures retry once and return the provider-unavailable message if they persist. Successful
+Groq readings are reused for an identical image and prompt/model; the chamomile photo succeeded
+on a later attempt and its reading was cached. Live cache files are excluded from Git.
+
 ### What remains
 
 1. **Audit the draft data ourselves.** Reopen each cited EMA monograph and record who checked each
@@ -63,10 +71,9 @@ independently verified. The result page labels unchecked reference rows as sampl
    expected answers and their basis; report counts and uncertainty. If there are too few checked
    labels, show examples and limitations instead of an accuracy percentage. Expert review is an
    optional later improvement, not a dependency for the prototype.
-4. **Improve the real-photo path.** Groq sometimes returns `json_validate_failed` on a valid
-   image; the app currently shows a generic unavailable message. Fix the retry/error handling
-   and test small-print labels. Prevent outputs such as the literal word `none` or a value with
-   unrelated quoted evidence from being counted as a stated field.
+4. **Improve the real-photo path.** Test small-print labels and measure failures after the new
+   retry handling. Prevent a value with unrelated quoted evidence from being counted as a stated
+   field. A successful API call alone does not establish reading accuracy.
 5. **Finish demo and deployment work.** Decide whether to keep fictional example labels clearly
    marked in the app, and deploy with HTTPS, secure production configuration, backups, and a
    smoke test. The current Compose setup is for

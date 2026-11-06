@@ -23,6 +23,9 @@ coverage/
 validation/results/*
 !validation/results/.gitkeep
 
+# Live label readings (existing demo fixtures remain tracked)
+data/extraction_cache/*.json
+
 # Local-only planning, design and docs
 docs/
 data/README.md

@@ -2,6 +2,7 @@ import json
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from http.client import RemoteDisconnected
 from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
@@ -139,6 +140,20 @@ def test_groq_reads_text_and_photo_with_strict_schema(tmp_path: Path, monkeypatc
     assert all(timeout == 120 for _, timeout in calls)
 
 
+def test_groq_reuses_successful_reading(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    image = jpeg()
+    model = MODEL
+    cache(tmp_path, image, extraction())
+    monkeypatch.setattr(providers, "urlopen", lambda *_args, **_kwargs: pytest.fail("API called"))
+    result = GroqProvider(model, secrets.token_urlsafe(24), tmp_path).extract(
+        image=image, text=None
+    )
+    assert result.fields.plant.value == "St John's wort"
+    assert result.latency_ms is None
+
+
 def test_groq_reports_missing_key_quota_and_bad_output(tmp_path: Path, monkeypatch):
     from app.extraction import providers
 
@@ -155,6 +170,73 @@ def test_groq_reports_missing_key_quota_and_bad_output(tmp_path: Path, monkeypat
     monkeypatch.setattr(providers, "urlopen", lambda request, timeout: BytesIO(b"{}"))
     with pytest.raises(ExtractionError, match="extraction_failed"):
         provider.extract(image=None, text=LABEL)
+
+
+def test_groq_retries_schema_failure_with_json_object(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    calls = []
+
+    def reply(request, timeout):
+        calls.append(json.loads(request.data))
+        if len(calls) == 1:
+            raise HTTPError(
+                request.full_url,
+                400,
+                "bad output",
+                {},
+                BytesIO(b'{"error":{"code":"json_validate_failed"}}'),
+            )
+        return BytesIO(
+            json.dumps({"choices": [{"message": {"content": json.dumps(extraction())}}]}).encode()
+        )
+
+    monkeypatch.setattr(providers, "urlopen", reply)
+    result = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path).extract(
+        image=jpeg(), text=None
+    )
+    assert result.fields.plant.value == "St John's wort"
+    assert calls[0]["response_format"]["type"] == "json_schema"
+    assert calls[1]["response_format"]["type"] == "json_object"
+
+
+def test_groq_retries_disconnect_then_reports_unavailable(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    calls = []
+
+    def disconnected(request, timeout):
+        calls.append(request)
+        raise RemoteDisconnected("connection closed")
+
+    monkeypatch.setattr(providers, "urlopen", disconnected)
+    with pytest.raises(ExtractionError, match="provider_unavailable"):
+        GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path).extract(
+            image=jpeg(), text=None
+        )
+    assert len(calls) == 2
+    assert all(json.loads(call.data)["response_format"]["type"] == "json_schema" for call in calls)
+
+
+def test_groq_rejects_placeholder_as_stated_value(tmp_path: Path, monkeypatch):
+    from app.extraction import providers
+
+    output = extraction()
+    output["plant"] = {"value": "none", "status": "stated", "confidence": 0.9, "evidence": "none"}
+    calls = []
+
+    def reply(request, timeout):
+        calls.append(request)
+        return BytesIO(
+            json.dumps({"choices": [{"message": {"content": json.dumps(output)}}]}).encode()
+        )
+
+    monkeypatch.setattr(providers, "urlopen", reply)
+    with pytest.raises(ExtractionError, match="extraction_failed"):
+        GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path).extract(
+            image=None, text=LABEL
+        )
+    assert len(calls) == 2
 
 
 def test_text_scan_flow_with_corrections(client: TestClient, db: Session, setup):
