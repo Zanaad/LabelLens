@@ -79,8 +79,13 @@ class InvitationAcceptIn(InvitationTokenIn):
 
 
 class ProfileUpdate(BaseModel):
+    full_name: str | None = Field(default=None, max_length=200)  # None leaves it unchanged
     organisation: str | None = Field(default=None, max_length=200)
     onboarded: bool = False
+
+
+class RevokedOut(BaseModel):
+    revoked: int
 
 
 class LabelTextIn(BaseModel):
@@ -199,6 +204,11 @@ class ForgotPasswordIn(BaseModel):
 class PasswordResetIn(BaseModel):
     token: str = Field(min_length=20, max_length=200)
     password: str = Field(max_length=1024)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(max_length=1024)
+    new_password: str = Field(max_length=1024)
 
 
 # Admin: users

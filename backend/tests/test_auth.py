@@ -1,6 +1,7 @@
 import secrets
 
 from fastapi.testclient import TestClient
+from httpx import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -121,6 +122,44 @@ def test_password_reset_by_email(client: TestClient, db: Session, monkeypatch):
     old = client.post("/api/auth/login", json={"email": "arta@example.org", "password": PASSWORD})
     assert old.status_code == 401
     login(client, "arta@example.org", new_password)
+
+
+def test_change_password(client: TestClient, db: Session):
+    user = make_user(db, "arta@example.org")
+    new_password = secrets.token_urlsafe(16)
+
+    def change(current: str, new: str) -> Response:
+        body = {"current_password": current, "new_password": new}
+        return client.post("/api/auth/change-password", json=body)
+
+    assert change(PASSWORD, new_password).status_code == 401  # must be signed in
+    login(client, "arta@example.org")
+    assert change(WRONG, new_password).json()["detail"] == "wrong_password"
+    assert change(PASSWORD, new_password[:5]).json()["detail"] == "password_too_short"
+    assert client.get("/api/auth/me").status_code == 200  # failed attempts keep the session
+
+    assert change(PASSWORD, new_password).status_code == 204
+    assert client.get("/api/auth/me").status_code == 401  # signed out everywhere
+    old = client.post("/api/auth/login", json={"email": "arta@example.org", "password": PASSWORD})
+    assert old.status_code == 401
+    login(client, "arta@example.org", new_password)
+    actions = db.scalars(select(AuditLog.action).where(AuditLog.user_id == user.id)).all()
+    assert "auth.password_changed" in actions
+
+
+def test_profile_name_and_sign_out_everywhere(client: TestClient, db: Session):
+    make_user(db, "arta@example.org")
+    login(client, "arta@example.org")
+    r = client.patch("/api/auth/me", json={"full_name": "  Arta K.  ", "organisation": None})
+    assert r.json()["full_name"] == "Arta K."
+    assert (
+        client.patch("/api/auth/me", json={"full_name": "  "}).json()["detail"] == "name_required"
+    )
+    assert client.patch("/api/auth/me", json={}).json()["full_name"] == "Arta K."  # unchanged
+
+    assert client.post("/api/auth/sign-out-everywhere").status_code == 204
+    assert client.get("/api/auth/me").status_code == 401
+    login(client, "arta@example.org")  # the password still works
 
 
 def test_auth_endpoints_are_rate_limited(client: TestClient):

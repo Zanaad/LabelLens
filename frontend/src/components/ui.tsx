@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { Link, type LinkProps } from "react-router-dom";
 import { t } from "../i18n";
-import { AlertIcon, ClockIcon, CloseIcon, EyeIcon, InfoIcon } from "./icons";
+import { AlertIcon, ClockIcon, CloseIcon, EyeIcon, InfoIcon, MatchIcon } from "./icons";
 
 const base =
   "ll-button inline-flex items-center justify-center gap-2 min-h-control rounded-control border font-sans text-base text-center no-underline disabled:opacity-60 disabled:cursor-not-allowed";
@@ -133,6 +133,7 @@ export function Checkbox({
 const noticeTone = {
   info: { cls: "border-cannot-bd bg-cannot-bg text-cannot-fg", Icon: InfoIcon },
   expired: { cls: "border-cannot-bd bg-cannot-bg text-cannot-fg", Icon: ClockIcon },
+  success: { cls: "border-match-bd bg-match-bg text-match-fg", Icon: MatchIcon },
   // Errors use the amber "partial" family: the design has no red, by rule.
   error: { cls: "border-partial-bd bg-partial-bg text-partial-fg", Icon: AlertIcon },
 } as const;

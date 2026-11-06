@@ -1,6 +1,6 @@
-import { useMe } from "../api/auth";
+import { useMe, type User } from "../api/auth";
 import { ROLE_HOME } from "../app/navigation";
-import { ButtonLink } from "../components/ui";
+import { ButtonLink, Eyebrow } from "../components/ui";
 import { t, type MessageKey } from "../i18n";
 
 export function PlaceholderPage({ title }: { title: MessageKey }) {
@@ -12,11 +12,21 @@ export function PlaceholderPage({ title }: { title: MessageKey }) {
   );
 }
 
-export function ForbiddenPage() {
+export function ForbiddenPage({ user }: { user: User }) {
   return (
-    <section className="flex max-w-[60ch] flex-col gap-3">
+    <section className="flex max-w-[60ch] flex-col items-start gap-4">
+      <Eyebrow>{t("forbidden.eyebrow")}</Eyebrow>
       <h1 className="m-0 text-page font-semibold">{t("forbidden.title")}</h1>
+      <p className="m-0">{t("forbidden.signedInAs", { name: user.full_name, role: t(`role.${user.role}`) })}</p>
       <p className="m-0 text-muted">{t("forbidden.body")}</p>
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink to={ROLE_HOME[user.role]}>{t("notFound.back")}</ButtonLink>
+        {user.role === "pharmacist" && (
+          <ButtonLink to="/scans" variant="secondary">
+            {t("forbidden.myScans")}
+          </ButtonLink>
+        )}
+      </div>
     </section>
   );
 }

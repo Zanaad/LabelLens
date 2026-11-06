@@ -43,11 +43,11 @@ function AccountMenu({ user }: { user: User }) {
           <RoleBadge role={user.role} />
         </span>
       </summary>
-      <div className="absolute top-[calc(100%+6px)] right-0 z-30 flex w-[260px] flex-col gap-0.5 rounded-control border border-border bg-surface p-2">
+      <div className="absolute top-[calc(100%+6px)] right-0 z-30 flex w-max min-w-[260px] max-w-[min(420px,calc(100vw-2rem))] flex-col gap-0.5 rounded-control border border-border bg-surface p-2">
         <p className="m-0 border-b border-border px-3 pt-2 pb-2.5 text-eyebrow text-muted">
           {t("account.signedInAs")}
           <br />
-          <span className="font-semibold break-all text-text">{user.email}</span>
+          <span className="font-semibold text-text [overflow-wrap:anywhere]">{user.email}</span>
         </p>
         <Link to="/settings" className={itemCls}>
           <SettingsIcon />

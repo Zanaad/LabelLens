@@ -409,6 +409,22 @@ def scan_history(
     )
 
 
+@router.delete("", status_code=204)
+def delete_all_scans(
+    db: Session = Depends(get_db),
+    storage: Storage = Depends(get_storage),
+    user: User = Depends(pharmacist_only),
+) -> Response:
+    scans = db.scalars(select(Scan).where(Scan.user_id == user.id)).all()
+    for scan in scans:
+        if scan.image_path:
+            storage.delete(scan.image_path)
+        db.delete(scan)  # extractions, corrections, verdicts and links cascade in the database
+    audit(db, "scan.delete_all", user_id=user.id, details={"count": len(scans)})
+    db.commit()
+    return Response(status_code=204)
+
+
 @router.delete("/{scan_id}", status_code=204)
 def delete_scan(
     scan_id: uuid.UUID,

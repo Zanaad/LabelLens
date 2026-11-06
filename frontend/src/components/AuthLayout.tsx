@@ -6,8 +6,8 @@ import { ThemeToggle } from "./HeaderControls";
 import { LockIcon } from "./icons";
 import { Eyebrow } from "./ui";
 
-/** Sign-in / register layout: form card on the left, explainer aside on the right. */
-export function AuthLayout({ children }: { children: ReactNode }) {
+/** Signed-out pages: brand header, page content, footer. */
+export function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <div className="ll-auth flex min-h-screen flex-col">
       <header className="no-print border-b border-border bg-surface">
@@ -16,6 +16,16 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <ThemeToggle />
         </div>
       </header>
+      {children}
+      <Footer />
+    </div>
+  );
+}
+
+/** Sign-in / register layout: form card on the left, explainer aside on the right. */
+export function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <PublicLayout>
       <main className="ll-auth-main mx-auto flex w-full max-w-auth flex-[1_0_auto] flex-wrap items-start justify-center gap-x-16 gap-y-10 px-6 pt-12 pb-16">
         <section className="ll-auth-card flex min-w-0 max-w-card flex-[1_1_400px] flex-col gap-[18px] rounded-control border border-border bg-surface p-8">
           {children}
@@ -39,8 +49,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           </p>
         </aside>
       </main>
-      <Footer />
-    </div>
+    </PublicLayout>
   );
 }
 

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
-import { AuthLayout } from "../components/AuthLayout";
 import { t } from "../i18n";
+import { AboutPage } from "../pages/AboutPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { AdminPage } from "../pages/AdminPage";
 import { AnnotationEditorPage, AnnotationsPage } from "../pages/AnnotationsPage";
@@ -18,9 +18,10 @@ import { ResultPage } from "../pages/ResultPage";
 import { ReviewPage } from "../pages/ReviewPage";
 import { ScanDetailPage } from "../pages/ScanDetailPage";
 import { ScanPage } from "../pages/ScanPage";
+import { SettingsPage } from "../pages/SettingsPage";
 import { SignInPage } from "../pages/SignInPage";
 import { SummaryPage } from "../pages/SummaryPage";
-import { NotFoundPage, PlaceholderPage } from "../pages/StatusPages";
+import { NotFoundPage } from "../pages/StatusPages";
 import { HomeRedirect, RedirectIfSignedIn, RequireAuth, RequireRole } from "./guards";
 
 // Loaded on demand: the chart library is only needed on this page.
@@ -37,7 +38,7 @@ export function App() {
       <Route path="/accept-invite" element={<RedirectIfSignedIn><AcceptInvitePage /></RedirectIfSignedIn>} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/about" element={<AuthLayout><PlaceholderPage title="footer.about" /></AuthLayout>} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/p" element={<PatientPage />} />
 
       {/* Signed in */}
@@ -70,7 +71,7 @@ export function App() {
           }
         />
         <Route path="/methods" element={<MethodsPage />} />
-        <Route path="/settings" element={<PlaceholderPage title="account.settings" />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

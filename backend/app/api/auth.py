@@ -11,6 +11,7 @@ from app.api.deps import get_current_user
 from app.api.schemas import (
     ForgotPasswordIn,
     LoginIn,
+    PasswordChangeIn,
     PasswordResetIn,
     ProfileUpdate,
     RegisterIn,
@@ -112,14 +113,18 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)) -> U
     return user
 
 
-@router.post("/logout", status_code=204)
-def logout(response: Response) -> Response:
+def clear_session_cookie(response: Response) -> Response:
     s = get_settings()
     response.delete_cookie(
         s.cookie_name, path="/", httponly=True, secure=s.cookie_secure, samesite="lax"
     )
     response.status_code = 204
     return response
+
+
+@router.post("/logout", status_code=204)
+def logout(response: Response) -> Response:
+    return clear_session_cookie(response)
 
 
 RESET_SUBJECT = "Reset your LabelLens password"
@@ -199,6 +204,34 @@ def reset_password(body: PasswordResetIn, db: Session = Depends(get_db)) -> Resp
     return Response(status_code=204)
 
 
+@router.post("/change-password", status_code=204, dependencies=[auth_limit])
+def change_password(
+    body: PasswordChangeIn,
+    response: Response,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    if not verify_password(user.password_hash, body.current_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="wrong_password")
+    check_new_password(body.new_password)
+    user.password_hash = hash_password(body.new_password)
+    # Signs the account out everywhere, this device too (cut-off is in whole seconds).
+    user.sessions_valid_from = datetime.now(UTC)
+    audit(db, "auth.password_changed", user_id=user.id, entity_type="user", entity_id=user.id)
+    db.commit()
+    return clear_session_cookie(response)
+
+
+@router.post("/sign-out-everywhere", status_code=204)
+def sign_out_everywhere(
+    response: Response, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+) -> Response:
+    user.sessions_valid_from = datetime.now(UTC)
+    audit(db, "auth.sign_out_everywhere", user_id=user.id, entity_type="user", entity_id=user.id)
+    db.commit()
+    return clear_session_cookie(response)
+
+
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
@@ -208,6 +241,10 @@ def me(user: User = Depends(get_current_user)) -> User:
 def update_me(
     body: ProfileUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ) -> User:
+    if body.full_name is not None:
+        if not body.full_name.strip():
+            raise HTTPException(422, detail="name_required")
+        user.full_name = body.full_name.strip()
     user.organisation = (body.organisation or "").strip() or None
     if body.onboarded and user.onboarded_at is None:
         user.onboarded_at = datetime.now(UTC)
