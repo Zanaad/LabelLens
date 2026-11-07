@@ -14,7 +14,7 @@ the herbal preparations studied in EU monographs, and gives one of three answers
 It only checks what is printed on the label, not what is inside the product. It never says a
 product is "safe", never gives dosing advice, and never treats missing information as good news.
 
-## Where we are (6 Nov 2026)
+## Where we are (7 Nov 2026)
 
 | Step | What it includes | Status |
 | --- | --- | --- |
@@ -35,8 +35,8 @@ independently verified. The result page labels unchecked reference rows as sampl
 
 - **AI label reading:** GroqCloud's `qwen/qwen3.8-27b` vision model through the backend, with
   `EXTRACTION_PROVIDER=groq` and a private `GROQ_API_KEY` in `.env`. The key is never sent to the
-  browser or committed. The free tier has rate limits. Claude remains an optional paid provider;
-  cached mode replays saved readings without an API call.
+  browser or committed. The free tier has rate limits. Claude is no longer used; cached mode
+  replays saved readings without an API call.
 - **Evidence data:** `data/reference/ema-draft.json`, seven source-linked draft preparations for
   Ginkgo, German chamomile, and St John's wort, transcribed from EMA monographs. The older
   `sample.json` is a fixture. Check the active database's rows before making a claim about its
@@ -47,15 +47,16 @@ independently verified. The result page labels unchecked reference rows as sampl
 - **Output:** a cautious verdict, field-by-field comparison, source links, missing-detail
   questions, patient link, and browser-printable one-page summary.
 
-### AI reading reliability (branch `ai-reading-reliability`)
+### AI reading reliability
 
 Groq strict-schema failures retry once using JSON-object output, then validate the same field
-schema locally. Placeholder strings presented as stated label values are rejected. Connection
-failures retry once and return the provider-unavailable message if they persist. Successful
-Groq readings are reused for an identical image and prompt/model; the chamomile photo succeeded
-on a later attempt and its reading was cached. Live cache files are excluded from Git.
+schema locally. Placeholder strings presented as stated label values are rejected, and so is a
+stated value that does not appear in its quoted evidence (ignoring case, spacing and
+punctuation). Connection failures retry once and return the provider-unavailable message if they
+persist. Successful Groq readings are reused for an identical image and prompt/model. Live cache
+files are excluded from Git.
 
-### Hackathon validation workflow (branch `hackathon-validation`)
+### Hackathon validation workflow
 
 - The validation run now selects the active Groq model, so it can find saved Groq readings.
 - An admin explicitly confirms every field against the image before a Final label enters the
@@ -82,13 +83,15 @@ on a later attempt and its reading was cached. Live cache files are excluded fro
    expected answers and their basis; report counts and uncertainty. If there are too few checked
    labels, show examples and limitations instead of an accuracy percentage. Expert review is an
    optional later improvement, not a dependency for the prototype.
-4. **Improve the real-photo path.** Test small-print labels and measure failures after the new
-   retry handling. Prevent a value with unrelated quoted evidence from being counted as a stated
-   field. A successful API call alone does not establish reading accuracy.
-5. **Finish demo and deployment work.** Decide whether to keep fictional example labels clearly
-   marked in the app, and deploy with HTTPS, secure production configuration, backups, and a
-   smoke test. The current Compose setup is for
-   local use. Record the EMA reuse terms before publishing reference data in a public repository.
+4. **Improve the real-photo path.** Test small-print labels and measure failures after the retry
+   handling and the new evidence check (done 7 Nov). A successful API call alone does not
+   establish reading accuracy.
+5. **Demo and deployment.** Deployment (HTTPS, secure production configuration, backups, smoke
+   test) is handled by a teammate; the current Compose setup is for local use. Still ours:
+   decide whether to keep fictional example labels clearly marked in the app, and record the EMA
+   reuse terms before publishing reference data in a public repository.
+6. **Wording reviews.** The About and Settings text (`TODO(team)`) and the patient wording
+   (`TODO(expert)`, ideally a pharmacist) still need a read-through.
 
 ### Possible later features
 
@@ -100,19 +103,18 @@ on a later attempt and its reading was cached. Live cache files are excluded fro
 
 ## How label reading works
 
-There are three modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
+Two modes are used, chosen with `EXTRACTION_PROVIDER` in `.env`:
 
 - **Demo mode (`cached`, the default).** No AI call and no cost. The app replays saved readings
   from `data/extraction_cache/`. Right now only the three example labels on the Scan page have
   saved readings, so uploading a real photo shows a "demo mode" message.
 - **Groq mode (`groq`).** The photo or text is sent to the Groq-hosted Qwen vision model. Set
-  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier.
-- **Claude mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
-  label. This needs an **Anthropic API key** (a paid key from console.anthropic.com) in
-  `EXTRACTION_API_KEY`. Every reading is saved, so it can be replayed later for free.
+  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier. Every reading is
+  saved, so it can be replayed later for free.
 
-The default model is **Claude Opus 5.5** (`claude-opus-5-5`). To use the cheaper Claude Sonnet 5.5,
-set `EXTRACTION_MODEL=claude-sonnet-5-5`.
+Claude was the original provider and was removed on 7 Nov (code, `anthropic` dependency, docs).
+`EXTRACTION_MODEL` stays only because the hand-written example readings are saved under that
+model name; cached mode needs it to find them.
 
 ## Decisions and risks to communicate
 
@@ -228,8 +230,13 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ### Step 3 (4 Nov)
 
-- **Compare two products: postponed** (agreed). The design has no Compare screen. The Compare
-  buttons and the "Saved comparisons" tile are left out until it is designed.
+- **Compare two products: built on 7 Nov, simple version** (agreed). The design links to a
+  Compare screen but never drew it, so this layout is ours. `/compare` puts two checked scans side
+  by side: verdict, details the label leaves out, and the ten label fields marked Same, Differs or
+  Neither states it. It never ranks or picks a winner, and dose is shown but not evaluated. It is
+  reached from "Compare with another product" on the result card and scan detail page. Frontend
+  only. **Saved comparisons** (the design's tile on My scans) stay left out: they would need a new
+  table, endpoints and tests. TODO(team): check the layout against the design owner's intent.
 - **PDF = the browser's "Save as PDF"** (agreed). The summary page is an A4 sheet styled for
   printing; it always prints in the light theme and fits on one page for the example labels.
   No new dependencies.
@@ -288,12 +295,12 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ### Step 1 (3 Nov)
 
-- **AI model:** Claude Opus 5.5 by default (see "How label reading works"). If Claude declines a
-  label, it automatically retries with another Claude model. The AI must fill in a fixed form
+- **AI model:** first built on Claude Opus 5.5; since step 5 the team uses Groq
+  (`qwen/qwen3.8-27b`, see "How label reading works"). The AI must fill in a fixed form
   (value, status, confidence, quoted label text for each field), so its answers always have the
-  same shape.
-- **New libraries (approved):** `anthropic` (talks to Claude), `python-multipart` (file uploads),
-  `pillow` (image handling).
+  same shape, whichever provider reads the label.
+- **New libraries (approved):** `python-multipart` (file uploads), `pillow` (image handling).
+  `anthropic` was also added for Claude and removed on 7 Nov.
 - **Pasting label text: yes. iPhone HEIC photos: no** (needs another library). The page says "JPG or PNG".
 - **Wording changes (approved):** onboarding says "never says whether a product is harmless or
   right for someone" instead of mentioning safety; "medium confidence" no longer says "inferred",
@@ -327,7 +334,9 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
   resets when the backend restarts.
 - **Invitations:** no email is sent. The admin copies a one-time link, valid 7 days. Pharmacists
   register themselves and can't be invited.
-- **First admin** is created from the command line: `python -m app.cli create-admin`.
+- **First admin** is created on the first start from `ADMIN_EMAIL`, `ADMIN_NAME` and
+  `ADMIN_PASSWORD` in `.env` (`seed-admin`, run by the container entrypoint; it does nothing if an
+  admin already exists). More admins: `python -m app.cli create-admin`, or an invitation.
 - **Tests** run on SQLite locally (fast); CI also runs them on PostgreSQL and checks that the
   database migrations match the code.
 - **Fonts** load from Google Fonts, like the design. We can host them ourselves later for privacy.
@@ -356,4 +365,4 @@ every screen. The colours from the design are in `frontend/src/theme/tokens.css`
 Screens the original design mentions but does not draw include accept invitation, forgot password,
 settings, about, reference table, validation, methods, compare, expert review queue, and admin.
 The current app implements invitation, password reset, reference, validation, methods, expert
-review, and admin screens. Compare remains postponed; About and Settings need a final content pass.
+review, admin and a simple compare screen; About and Settings need a final content pass.
