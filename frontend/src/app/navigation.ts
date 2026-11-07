@@ -8,7 +8,7 @@ type NavItem = { to: string; label: MessageKey; roles: Role[]; active?: RegExp }
 const NAV_ITEMS: NavItem[] = [
   { to: "/scan", label: "nav.scan", roles: ["pharmacist"], active: /^\/scan$|^\/scans\/[^/]+\/(review|result|summary)$/ },
   { to: "/scans", label: "nav.myScans", roles: ["pharmacist"], active: /^\/scans(\/[^/]+)?$/ },
-  { to: "/review", label: "nav.reviewQueue", roles: ["expert", "admin"] },
+  { to: "/review", label: "nav.reviewQueue", roles: ["expert"] },
   { to: "/admin", label: "nav.admin", roles: ["admin"] },
   { to: "/reference", label: "nav.reference", roles: ["pharmacist", "expert", "admin"] },
   { to: "/validation", label: "nav.validation", roles: ["pharmacist", "expert", "admin"] },

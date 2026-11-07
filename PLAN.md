@@ -93,6 +93,59 @@ files are excluded from Git.
 6. **Wording reviews.** The About and Settings text (`TODO(team)`) and the patient wording
    (`TODO(expert)`, ideally a pharmacist) still need a read-through.
 
+### Roles: production target vs today (8 Nov)
+
+How each role should behave if LabelLens went to production, against what the app does now.
+✅ done, ⚠️ partly, ❌ missing.
+
+**Pharmacist** (the main user)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Create an account | Self-registration with email verification; ideally an organisation or licence check | Self-registration; the email must be confirmed before signing in (when SMTP is set up); no licence check | ⚠️ |
+| Scan, review fields, get the verdict | Yes | Yes | ✅ |
+| History, recheck, delete own scans, export own data | Yes | Yes | ✅ |
+| See only their own scans | Yes | Yes | ✅ |
+| Patient links, printable summary, compare two products | Yes | Yes | ✅ |
+| See reviewer opinions next to the verdict | Yes, as advice only | Yes | ✅ |
+| Ask an expert about an uncertain result | Yes, with an optional question | Yes; the expert queue lists these first | ✅ |
+| Read the reference table and validation results | Read-only | Read-only | ✅ |
+
+**Expert** (domain judgement)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Account | Invitation-only | Invitation-only, link emailed | ✅ |
+| Review queue | Escalated cases first, plus a random sample, not every scan | Escalated cases first, then every other checked scan, newest first | ⚠️ |
+| Rate without seeing the pharmacist or other reviewers | Yes | Yes | ✅ |
+| Mark reference rows as checked, without editing content | Yes | Yes | ✅ |
+| Suggest a correction to a reference row | Yes | No; must tell an admin outside the app | ❌ |
+| Set the expected verdict on validation labels | Yes, it is expert judgement | No, the admin sets it | ❌ |
+| See validation results | Read-only | Read-only | ✅ |
+
+**Admin** (runs the system)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Manage users: deactivate, reset password | Yes | Yes | ✅ |
+| Change a user's role | Yes | No; only active or inactive | ❌ |
+| Invite experts and admins | Yes, by email | Yes | ✅ |
+| Transcribe reference rows, without checking them | Yes | Yes | ✅ |
+| Validation labels (fields) and runs | Yes | Yes | ✅ |
+| Usage statistics (scans per day, verdict mix, review backlog) | Yes | No screen | ❌ |
+| View the audit log | Yes | Logged, but no screen | ❌ |
+| Never see pharmacists' scans or patient data | Correct | Correct | ✅ |
+| Never review verdicts | Correct | Correct | ✅ |
+
+**All roles**
+
+| Area | In production | Today | Status |
+| --- | --- | --- | --- |
+| Two-step sign-in (MFA) for admins and experts | Yes | No | ❌ |
+| Data retention: delete old scans and photos automatically | A set policy | Manual deletion only | ⚠️ |
+| Rate limits | Shared across restarts and servers | In memory, reset on restart | ⚠️ |
+| HTTPS, backups, deployment | Yes | Handled by a teammate | ⚠️ |
+
 ### Possible later features
 
 - A copyable manufacturer-question message based on the missing-detail checklist.
@@ -130,6 +183,20 @@ model name; cached mode needs it to find them.
 - **Publication:** check EMA reuse terms and the active database content before public release.
 
 ## Decisions made
+
+### Email verification and "Ask an expert" (8 Nov)
+
+- **Email verification.** With `SMTP_HOST` set, a self-registered pharmacist gets a one-time
+  link (`/verify-email#<token>`, valid 24 hours, hash stored only) and cannot sign in until it is
+  opened; opening it signs them in. Sign-in says "confirm your email" only after the right
+  password, and "Send the link again" answers the same for unknown emails. Without `SMTP_HOST`
+  (local runs, tests) accounts are confirmed at once. Invited accounts and the seeded admin count
+  as confirmed. Migration 0006 marks existing accounts as confirmed.
+- **Ask an expert.** On the result card and scan detail page a pharmacist can ask an expert to
+  look at the latest result, with an optional question (no patient details). The expert queue
+  lists these first until that expert has rated them, with an "Asked by a pharmacist" filter, and
+  shows the question without the pharmacist's name. Asking again only updates the question. It
+  never changes the verdict. No email to experts yet.
 
 ### Recheck saved scans (6 Nov)
 
@@ -194,7 +261,13 @@ model name; cached mode needs it to find them.
   - Admins can also send a reset email from the user list.
   - Email is sent over SMTP with settings in `.env`; no new library. We use Gmail with an app
     password; with no `SMTP_HOST` set, no email is sent.
-- **Expert review queue.** Experts and admins see the newest verdict of each checked scan,
+- **Roles split (8 Nov, agreed):** admins run the system (users, invitations, editing the
+  reference table, validation labels and runs, statistics); only experts judge (the review queue,
+  and marking reference rows as checked). An admin's change to a checked row's content unchecks
+  it, because the old check no longer covers the new values. Ratings admins gave before the split
+  stay stored. Validation expected verdicts stay with the admin for now; ideally an expert decides
+  them.
+- **Expert review queue.** Experts see the newest verdict of each checked scan,
   without the pharmacist's name or email (as onboarding promises). They choose Agree, Disagree
   (then the right verdict) or Unsure, with an optional reason. A review shows up in the
   pharmacist's activity log.
@@ -208,9 +281,9 @@ model name; cached mode needs it to find them.
   so the mentor can see it. Pharmacists and patients still see "Cannot say".
 - **Admin users page:** deactivate or reactivate accounts (it takes effect immediately), send a
   reset email, and see the invitations. Admins can't deactivate themselves.
-- **Reference table page** for everyone; admins add, edit and delete rows, and every change to a
-  studied preparation is kept in a history (who, when, which fields). Rows not yet checked still
-  need a `TODO(expert)` note.
+- **Reference table page** for everyone; admins add, edit and delete rows, experts mark rows as
+  checked or not checked, and every change to a studied preparation is kept in a history (who,
+  when, which fields, including checks). Rows not yet checked still need a `TODO(expert)` note.
 - **Validation labels (admin):**
   - Upload a photo or paste label text. The app pre-fills the fields from its own reading when
     there is one; the annotator corrects every field and sets the expected verdict.

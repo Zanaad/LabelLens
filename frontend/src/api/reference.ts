@@ -22,7 +22,7 @@ export type PlantNameInput = { name: string; language: string; latin_name: strin
 export type PlantName = PlantNameInput & { id: string };
 
 export type ReferenceChange = {
-  action: "create" | "update" | "delete" | "import";
+  action: "create" | "update" | "delete" | "import" | "check" | "uncheck";
   by: string | null;
   at: string;
   before: Partial<PreparationInput> | null;
@@ -43,6 +43,16 @@ export function usePreparationHistory(id: string | null) {
     queryKey: [...referenceKey, "history", id],
     queryFn: () => api<ReferenceChange[]>(`/api/reference/preparations/${id}/history`),
     enabled: id !== null,
+  });
+}
+
+// Experts only: mark a row as checked against its source, or undo that.
+export function useCheckReference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ table, id, verified }: { table: "preparations" | "plant-names"; id: string; verified: boolean }) =>
+      api<unknown>(`/api/reference/${table}/${id}/check`, { method: "PUT", json: { verified } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: referenceKey }),
   });
 }
 
