@@ -97,6 +97,10 @@ def test_expert_review(client: TestClient, db: Session, cache_dir: Path, referen
     review = [a for a in log if a["action"] == "scan.review"][-1]  # one entry per rating change
     assert review["by"] is None  # the expert stays anonymous
     assert review["details"] == {"rating": "agree"}
+    [opinion] = client.get(f"/api/scans/{scan['id']}/verdict").json()["reviews"]
+    assert opinion["rating"] == "agree"
+    assert set(opinion) == {"rating", "correct_verdict", "reason"}  # nothing about who
+    assert client.get("/api/scans").json()[0]["review"] == "agree"
 
 
 def test_reference_editing(client: TestClient, db: Session):

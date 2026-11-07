@@ -125,6 +125,7 @@ class ScanListItem(BaseModel):
     plant: str | None
     verdict: VerdictCode | None  # latest check; None if not checked yet
     missing: int | None
+    review: Rating | None = None  # most notable reviewer rating of the latest check
 
 
 class CorrectionOut(BaseModel):
@@ -182,6 +183,14 @@ class SharedView(BaseModel):
     expires_at: datetime
 
 
+class ReviewOpinion(BaseModel):
+    """A reviewer's rating as the pharmacist sees it: no reviewer name or id."""
+
+    rating: Rating
+    correct_verdict: VerdictCode | None
+    reason: str | None
+
+
 class VerdictOut(BaseModel):
     # Shapes come from app.rules.engine (Item, Comparison, Reference); the UI words them.
     id: uuid.UUID
@@ -193,6 +202,7 @@ class VerdictOut(BaseModel):
     comparisons: list[dict[str, Any]]
     missing: list[dict[str, Any]]
     sources: list[dict[str, Any]]
+    reviews: list[ReviewOpinion] = []  # only filled for the pharmacist who owns the scan
 
 
 # Password reset

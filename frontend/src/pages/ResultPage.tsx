@@ -17,7 +17,7 @@ import {
 } from "../components/icons";
 import { ShareDialog } from "../components/ShareDialog";
 import { Button, ButtonLink, Eyebrow, Notice, Steps } from "../components/ui";
-import { VERDICT, groupSources, say, type SourceDoc } from "../components/verdict";
+import { ReviewerOpinions, VERDICT, groupSources, say, type SourceDoc } from "../components/verdict";
 import { t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
 
@@ -195,6 +195,7 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
                 );
               })}
             </ol>
+            <ReviewerOpinions reviews={verdict.reviews} />
           </section>
 
           <ComparisonTable comparisons={verdict.comparisons} />

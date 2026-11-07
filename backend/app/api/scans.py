@@ -15,6 +15,7 @@ from app.api.schemas import (
     FieldOut,
     FieldsUpdate,
     LabelTextIn,
+    ReviewOpinion,
     ScanHistory,
     ScanListItem,
     ScanOut,
@@ -33,8 +34,10 @@ from app.extraction.schema import FIELD_KEYS, FieldStatus
 from app.models import (
     AuditLog,
     Correction,
+    ExpertRating,
     Extraction,
     PlantName,
+    Rating,
     ReferencePreparation,
     Role,
     Scan,
@@ -238,8 +241,25 @@ def update_fields(
 REFERENCE_FIELDS = [f.name for f in dataclasses.fields(engine.Reference) if f.name != "id"]
 
 
-def verdict_out(v: Verdict) -> VerdictOut:
+def _opinions(db: Session, verdict_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[ReviewOpinion]]:
+    """Reviewer ratings per verdict, in one query and without who gave them."""
+    out: dict[uuid.UUID, list[ReviewOpinion]] = {}
+    if verdict_ids:
+        rows = select(ExpertRating).where(ExpertRating.verdict_id.in_(verdict_ids))
+        for r in db.scalars(rows.order_by(ExpertRating.created_at)):
+            out.setdefault(r.verdict_id, []).append(
+                ReviewOpinion.model_validate(r, from_attributes=True)
+            )
+    return out
+
+
+# A disagreement matters most to the pharmacist, then uncertainty.
+REVIEW_PRIORITY = (Rating.disagree, Rating.unsure, Rating.agree)
+
+
+def verdict_out(v: Verdict, reviews: list[ReviewOpinion] | None = None) -> VerdictOut:
     return VerdictOut(
+        reviews=reviews or [],
         id=v.id,
         created_at=v.created_at,
         rules_version=v.rules_version,
@@ -319,7 +339,7 @@ def get_verdict(
     verdict = latest_verdict(db, own_scan(db, scan_id, user).id)
     if verdict is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_verdict")
-    return verdict_out(verdict)
+    return verdict_out(verdict, _opinions(db, [verdict.id]).get(verdict.id))
 
 
 @router.get("/{scan_id}/verdicts", response_model=list[VerdictOut])
@@ -332,7 +352,8 @@ def list_verdicts(
         .where(Verdict.scan_id == scan.id)
         .order_by(Verdict.created_at.desc(), Verdict.id.desc())
     ).all()
-    return [verdict_out(verdict) for verdict in verdicts]
+    opinions = _opinions(db, [v.id for v in verdicts])
+    return [verdict_out(v, opinions.get(v.id)) for v in verdicts]
 
 
 def _missing_count(missing_json: dict[str, Any]) -> int:
@@ -349,22 +370,25 @@ def list_scans(
     ids = [s.id for s in scans]
     # One query each for the latest fields and verdicts (ordered, so the newest wins).
     fields: dict[uuid.UUID, dict[str, Any]] = {}
-    verdicts: dict[uuid.UUID, tuple[VerdictCode, dict[str, Any]]] = {}
+    verdicts: dict[uuid.UUID, tuple[uuid.UUID, VerdictCode, dict[str, Any]]] = {}
+    reviews: dict[uuid.UUID, list[ReviewOpinion]] = {}
     if ids:
         extraction_rows = select(Extraction.scan_id, Extraction.fields_json).where(
             Extraction.scan_id.in_(ids)
         )
         for scan_id, fields_json in db.execute(extraction_rows.order_by(Extraction.created_at)):
             fields[scan_id] = fields_json
-        verdict_rows = select(Verdict.scan_id, Verdict.verdict, Verdict.missing_json).where(
-            Verdict.scan_id.in_(ids)
-        )
-        for scan_id, code, missing in db.execute(verdict_rows.order_by(Verdict.created_at)):
-            verdicts[scan_id] = (code, missing)
+        verdict_rows = select(
+            Verdict.scan_id, Verdict.id, Verdict.verdict, Verdict.missing_json
+        ).where(Verdict.scan_id.in_(ids))
+        for scan_id, vid, code, missing in db.execute(verdict_rows.order_by(Verdict.created_at)):
+            verdicts[scan_id] = (vid, code, missing)
+        reviews = _opinions(db, [v[0] for v in verdicts.values()])
     items = []
     for s in scans:
         f = fields.get(s.id, {})
         v = verdicts.get(s.id)
+        given = {o.rating for o in reviews.get(v[0], [])} if v else set()
         items.append(
             ScanListItem(
                 id=s.id,
@@ -372,8 +396,9 @@ def list_scans(
                 status=s.status,
                 product_name=f.get("product_name"),
                 plant=(f.get("plant") or {}).get("value"),
-                verdict=v[0] if v else None,
-                missing=_missing_count(v[1]) if v else None,
+                verdict=v[1] if v else None,
+                missing=_missing_count(v[2]) if v else None,
+                review=next((r for r in REVIEW_PRIORITY if r in given), None),
             )
         )
     return items

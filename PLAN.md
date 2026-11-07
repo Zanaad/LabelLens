@@ -198,6 +198,12 @@ model name; cached mode needs it to find them.
   without the pharmacist's name or email (as onboarding promises). They choose Agree, Disagree
   (then the right verdict) or Unsure, with an optional reason. A review shows up in the
   pharmacist's activity log.
+- **Reviewer opinions are shown, never applied** (8 Nov, agreed). The verdict stays the rules'
+  answer. The pharmacist sees each rating on the scan detail page and result card ("A reviewer
+  disagreed. Suggested verdict: …", with the reason), and My scans tags the latest check with the
+  most notable rating (disagreed, then unsure, then agreed). No reviewer name is ever returned.
+  Not shown on the patient link or the printed summary. Wording says "a reviewer", because admins
+  can rate too.
 - **"Differs" is named on expert and admin screens** ("Differs from every studied preparation"),
   so the mentor can see it. Pharmacists and patients still see "Cannot say".
 - **Admin users page:** deactivate or reactivate accounts (it takes effect immediately), send a

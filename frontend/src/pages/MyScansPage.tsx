@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useScans, type ScanListItem, type VerdictCode } from "../api/scans";
-import { DownloadIcon, InboxIcon, NotStatedIcon, SearchIcon, ShareIcon, SortIcon, UploadIcon } from "../components/icons";
+import { DownloadIcon, InboxIcon, NotStatedIcon, ReviewIcon, SearchIcon, ShareIcon, SortIcon, UploadIcon } from "../components/icons";
 import { ShareDialog } from "../components/ShareDialog";
 import { ButtonLink, Eyebrow, inputClass } from "../components/ui";
 import { VERDICT, VerdictChip } from "../components/verdict";
@@ -240,7 +240,15 @@ function ScanTable({ scans, onShare }: { scans: ScanListItem[]; onShare: (s: Sca
                   <td className="border-b border-border px-3 py-2.5 font-mono text-sm whitespace-nowrap">{formatDate(s.created_at)}</td>
                   <td className="border-b border-border px-3 py-2.5">
                     {s.verdict ? (
-                      <VerdictChip verdict={s.verdict} />
+                      <>
+                        <VerdictChip verdict={s.verdict} />
+                        {s.review && (
+                          <span className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+                            <ReviewIcon size={16} />
+                            {t(`myScans.review.${s.review}` as MessageKey)}
+                          </span>
+                        )}
+                      </>
                     ) : (
                       <span className="text-muted">{t(s.status === "out_of_scope" ? "myScans.outOfScope" : "myScans.notChecked")}</span>
                     )}

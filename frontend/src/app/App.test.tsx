@@ -196,6 +196,7 @@ const verdict = {
   sources: [
     { id: "r1", herb_latin: "Matricaria recutita L.", evidence_level: null, source_doc: "EU monograph", source_section: null, source_url: null, verified: false },
   ],
+  reviews: [{ rating: "disagree", correct_verdict: "cannot_say", reason: "Species is not stated" }],
 };
 
 describe("result", () => {
@@ -208,6 +209,8 @@ describe("result", () => {
     expect(screen.getByText(/can mean more than one species \(Chamaemelum nobile \(L\.\) All\. or Matricaria/)).toBeInTheDocument();
     expect(screen.getByText(/Which species is this: A or B\?/)).toBeInTheDocument();
     expect(screen.getByText(/Sample reference data/)).toBeInTheDocument();
+    expect(screen.getByText(/A reviewer disagreed with this verdict\. Suggested verdict: Cannot say/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Partly matches" })).toBeInTheDocument(); // verdict unchanged
     await userEvent.setup().click(screen.getByRole("button", { name: "Open source 1" }));
     expect(within(screen.getByRole("dialog", { name: "Sources" })).getByText("EU monograph")).toBeInTheDocument();
   });

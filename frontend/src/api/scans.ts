@@ -62,6 +62,13 @@ export type Source = {
   verified: boolean;
 };
 
+// A reviewer's rating as the pharmacist sees it (no name); advice only, the verdict never changes.
+export type ReviewOpinion = {
+  rating: "agree" | "disagree" | "unsure";
+  correct_verdict: VerdictCode | null;
+  reason: string | null;
+};
+
 export type Verdict = {
   id: string;
   created_at: string;
@@ -72,6 +79,7 @@ export type Verdict = {
   comparisons: Comparison[];
   missing: ResultItem[];
   sources: Source[];
+  reviews: ReviewOpinion[];
 };
 
 export type ScanListItem = {
@@ -82,6 +90,7 @@ export type ScanListItem = {
   plant: string | null;
   verdict: VerdictCode | null;
   missing: number | null;
+  review: ReviewOpinion["rating"] | null;
 };
 
 export type Share = {

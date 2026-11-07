@@ -20,7 +20,7 @@ import {
 import { ArrowRightIcon, CompareIcon, DocumentIcon, DownloadIcon, HistoryIcon, NotStatedIcon, ShareIcon } from "../components/icons";
 import { ShareDialog } from "../components/ShareDialog";
 import { Button, ButtonLink, Eyebrow, Notice, initials, inputClass } from "../components/ui";
-import { VERDICT, VerdictChip, say } from "../components/verdict";
+import { ReviewerOpinions, VERDICT, VerdictChip, say } from "../components/verdict";
 import { en } from "../i18n/en";
 import { formatDate, formatDateTime, t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
@@ -173,6 +173,7 @@ function VerdictSection({ scan, verdict, previous }: { scan: Scan; verdict: Verd
               </li>
             ))}
           </ol>
+          <ReviewerOpinions reviews={verdict.reviews} />
           <Link to={`/scans/${scan.id}/result`} className="inline-flex min-h-control items-center gap-1.5 font-medium">
             {t("detail.seeResult")}
             <ArrowRightIcon />
@@ -281,11 +282,11 @@ function ActivitySection({ scanId, history }: { scanId: string; history: ScanHis
                 aria-hidden="true"
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-weak text-xs font-bold text-accent"
               >
-                {initials(a.action === "scan.review" ? t("activity.anExpert") : (a.by ?? ""))}
+                {initials(a.action === "scan.review" ? t("activity.reviewer") : (a.by ?? ""))}
               </span>
               <div>
                 <p className="m-0 text-body-sm">
-                  <strong>{a.action === "scan.review" ? t("activity.anExpert") : a.by}</strong>{" "}
+                  <strong>{a.action === "scan.review" ? t("activity.reviewer") : a.by}</strong>{" "}
                   {t(`activity.${a.action}` as MessageKey, {
                     verdict: a.details?.verdict ? t(VERDICT[a.details.verdict as Verdict["verdict"]].short) : "",
                     rating: a.details?.rating ? t(`activity.rating.${a.details.rating}` as MessageKey) : "",
