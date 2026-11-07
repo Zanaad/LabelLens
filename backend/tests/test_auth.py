@@ -76,6 +76,19 @@ def test_login_logout_flow(client: TestClient, db: Session):
     assert client.get("/api/auth/me").status_code == 401
 
 
+def test_remember_me_sets_a_longer_session(client: TestClient, db: Session):
+    make_user(db, "besim@example.org", Role.expert)
+    s = get_settings()
+    body = {"email": "besim@example.org", "password": PASSWORD}
+
+    normal = client.post("/api/auth/login", json=body).headers["set-cookie"]
+    assert f"Max-Age={s.jwt_ttl_minutes * 60}" in normal
+
+    remembered = client.post("/api/auth/login", json={**body, "remember_me": True})
+    assert f"Max-Age={s.remember_me_days * 86400}" in remembered.headers["set-cookie"]
+    assert client.get("/api/auth/me").status_code == 200
+
+
 def test_login_wrong_password_and_unknown_email_look_the_same(client: TestClient, db: Session):
     make_user(db, "arta@example.org")
     wrong = client.post("/api/auth/login", json={"email": "arta@example.org", "password": WRONG})

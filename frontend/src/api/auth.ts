@@ -55,7 +55,7 @@ function useSignedIn() {
 export function useLogin() {
   const onSignedIn = useSignedIn();
   return useMutation({
-    mutationFn: (body: { email: string; password: string }) =>
+    mutationFn: (body: { email: string; password: string; remember_me: boolean }) =>
       api<User>("/api/auth/login", { method: "POST", json: body }),
     onSuccess: onSignedIn,
   });

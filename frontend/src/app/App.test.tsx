@@ -90,7 +90,7 @@ describe("routing and auth", () => {
     await user.type(screen.getByLabelText("Password"), PASSWORD);
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("heading", { name: "Review queue" })).toBeInTheDocument();
-    expect(sentBody(fetchMock, "/api/auth/login")).toEqual({ email: "besim@example.org", password: PASSWORD });
+    expect(sentBody(fetchMock, "/api/auth/login")).toEqual({ email: "besim@example.org", password: PASSWORD, remember_me: false });
   });
 
   it("registers with both consents", async () => {

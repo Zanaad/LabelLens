@@ -230,6 +230,7 @@ export const en = {
   "signIn.email": "Email",
   "signIn.password": "Password",
   "signIn.forgot": "Forgot password?",
+  "signIn.remember": "Remember me for 30 days on this device",
   "signIn.submit": "Sign in",
   "signIn.newHere": "New to LabelLens?",
   "signIn.createAccount": "Create a pharmacist account",

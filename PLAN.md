@@ -326,7 +326,9 @@ model name; cached mode needs it to find them.
   `email-validator`, `psycopg[binary]`, `argon2-cffi`, `pyjwt`, and `httpx` for tests; frontend
   testing and lint tools only. Rate limiting and translations are small home-made versions
   instead of extra libraries.
-- **Staying logged in:** a secure cookie that lasts 8 hours. Logging out ends it on that device;
+- **Staying logged in:** a secure cookie that lasts 8 hours, or 30 days when "Remember me" is
+  ticked on the sign-in page (`REMEMBER_ME_DAYS`, 7 Nov; registration and invitations always use
+  8 hours). Changing the password or signing out everywhere still ends every session. Logging out ends it on that device;
   we can't force-logout someone from elsewhere (fine for a hackathon).
 - **Protection against attacks from other websites:** strict cookie settings, JSON-only requests,
   and an explicit list of allowed sites.

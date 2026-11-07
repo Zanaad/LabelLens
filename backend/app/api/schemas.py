@@ -36,6 +36,7 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str = Field(max_length=1024)
+    remember_me: bool = False
 
 
 class InvitationCreate(BaseModel):

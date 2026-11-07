@@ -50,12 +50,13 @@ def check_consent(accept_privacy: bool, accept_terms: bool) -> None:
         raise HTTPException(422, detail="consent_required")
 
 
-def set_session_cookie(response: Response, user: User) -> None:
+def set_session_cookie(response: Response, user: User, remember: bool = False) -> None:
     s = get_settings()
+    ttl = timedelta(days=s.remember_me_days) if remember else timedelta(minutes=s.jwt_ttl_minutes)
     response.set_cookie(
         key=s.cookie_name,
-        value=create_session_token(user.id),
-        max_age=s.jwt_ttl_minutes * 60,
+        value=create_session_token(user.id, ttl),
+        max_age=int(ttl.total_seconds()),
         httponly=True,
         secure=s.cookie_secure,
         samesite="lax",
@@ -109,7 +110,7 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)) -> U
     user.last_login_at = datetime.now(UTC)
     audit(db, "auth.login", user_id=user.id)
     db.commit()
-    set_session_cookie(response, user)
+    set_session_cookie(response, user, remember=body.remember_me)
     return user
 
 

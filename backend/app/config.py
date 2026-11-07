@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32, repr=False)
     jwt_algorithm: str = "HS256"
     jwt_ttl_minutes: int = 480
+    remember_me_days: int = 30  # session length when "Remember me" is ticked
     cookie_name: str = "ll_session"
     cookie_secure: bool = False  # set true behind HTTPS
     password_min_length: int = 12
