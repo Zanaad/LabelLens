@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -38,6 +39,19 @@ def test_admin_creates_invitation_and_only_hash_is_stored(client: TestClient, db
     assert row.token_hash == hash_token(inv["token"])
     assert inv["token"] not in row.token_hash
     assert row.expires_at > datetime.now(UTC)
+
+
+def test_invitation_is_emailed_with_the_one_time_link(
+    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+):
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "app.api.invitations.send_email", lambda to, _s, body: sent.append((to, body))
+    )
+    inv = _invite(client, db)
+    [(to, body)] = sent
+    assert to == "besim@example.org"
+    assert f"/accept-invite#{inv['token']}" in body
 
 
 def test_invitation_accept_creates_user_with_invited_role(client: TestClient, db: Session):

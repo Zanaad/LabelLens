@@ -1,10 +1,10 @@
-# Invitation-only accounts (expert, admin). No email: the admin shares /accept-invite#<token>;
-# the fragment keeps the token out of server logs.
+# Invitation-only accounts (expert, admin). The link /accept-invite#<token> is emailed and also
+# shown to the admin as a fallback; the fragment keeps the token out of server logs.
 
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,11 +30,25 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Invitation, Role, User
 from app.services.audit import audit
+from app.services.email import send_email
 from app.services.security import hash_password, hash_token, new_opaque_token
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 admin_only = require_roles(Role.admin)
+
+INVITE_SUBJECT = "You are invited to LabelLens"
+INVITE_BODY = """Hello,
+
+{inviter} invited you to join LabelLens as {role}. To create your account, open this link
+within {days} days:
+
+{link}
+
+The link works once. If you were not expecting this invitation, you can ignore this email.
+
+LabelLens (research prototype)
+"""
 
 
 def _usable_invitation(db: Session, token: str) -> Invitation:
@@ -47,8 +61,12 @@ def _usable_invitation(db: Session, token: str) -> Invitation:
 
 @router.post("", response_model=InvitationCreated, status_code=201)
 def create_invitation(
-    body: InvitationCreate, db: Session = Depends(get_db), admin: User = Depends(admin_only)
+    body: InvitationCreate,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin: User = Depends(admin_only),
 ) -> InvitationCreated:
+    s = get_settings()
     email = normalise_email(body.email)
     if email_exists(db, email):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="email_taken")
@@ -58,7 +76,7 @@ def create_invitation(
         role=body.role,
         token_hash=token_hash,
         invited_by_id=admin.id,
-        expires_at=datetime.now(UTC) + timedelta(hours=get_settings().invitation_ttl_hours),
+        expires_at=datetime.now(UTC) + timedelta(hours=s.invitation_ttl_hours),
     )
     db.add(inv)
     db.flush()
@@ -71,6 +89,13 @@ def create_invitation(
         details={"role": body.role.value},
     )
     db.commit()
+    mail = INVITE_BODY.format(
+        inviter=admin.full_name,
+        role="an administrator" if body.role == Role.admin else "an expert reviewer",
+        days=s.invitation_ttl_hours // 24,
+        link=f"{s.app_base_url.rstrip('/')}/accept-invite#{token}",
+    )
+    background.add_task(send_email, email, INVITE_SUBJECT, mail)
     return InvitationCreated(
         **InvitationOut.model_validate(inv).model_dump(),
         token=token,

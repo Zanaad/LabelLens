@@ -270,7 +270,7 @@ export const en = {
   "admin.tabAnnotations": "Validation labels",
   "admin.inviteTitle": "Invite an expert reviewer or admin",
   "admin.inviteIntro":
-    "No email is sent. Copy the link and send it to the person yourself. It works once and expires.",
+    "The link is emailed to the person when email is set up. You can also copy it and send it yourself. It works once and expires.",
   "admin.inviteEmail": "Email",
   "admin.inviteRole": "Role",
   "admin.inviteSubmit": "Create invitation",

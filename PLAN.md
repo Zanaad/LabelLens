@@ -334,8 +334,10 @@ model name; cached mode needs it to find them.
   and an explicit list of allowed sites.
 - **Rate limit:** 10 login or register attempts per minute per IP address. Kept in memory, so it
   resets when the backend restarts.
-- **Invitations:** no email is sent. The admin copies a one-time link, valid 7 days. Pharmacists
-  register themselves and can't be invited.
+- **Invitations:** the one-time link (valid 7 days) is emailed to the invited address (7 Nov; SMTP
+  as for password reset, nothing is sent without `SMTP_HOST`) and is still shown to the admin to
+  copy as a fallback. Pharmacists register themselves and can't be invited. Tests never send real
+  email: `conftest.py` blanks `SMTP_HOST`.
 - **First admin** is created on the first start from `ADMIN_EMAIL`, `ADMIN_NAME` and
   `ADMIN_PASSWORD` in `.env` (`seed-admin`, run by the container entrypoint; it does nothing if an
   admin already exists). More admins: `python -m app.cli create-admin`, or an invitation.
