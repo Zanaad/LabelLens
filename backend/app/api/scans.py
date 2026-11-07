@@ -322,6 +322,19 @@ def get_verdict(
     return verdict_out(verdict)
 
 
+@router.get("/{scan_id}/verdicts", response_model=list[VerdictOut])
+def list_verdicts(
+    scan_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(pharmacist_only)
+) -> list[VerdictOut]:
+    scan = own_scan(db, scan_id, user)
+    verdicts = db.scalars(
+        select(Verdict)
+        .where(Verdict.scan_id == scan.id)
+        .order_by(Verdict.created_at.desc(), Verdict.id.desc())
+    ).all()
+    return [verdict_out(verdict) for verdict in verdicts]
+
+
 def _missing_count(missing_json: dict[str, Any]) -> int:
     # "Ask for the leaflet" is a follow-up, not a missing label detail.
     return sum(1 for item in missing_json["items"] if item["code"] != "leaflet")

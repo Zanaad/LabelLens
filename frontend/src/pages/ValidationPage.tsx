@@ -186,6 +186,7 @@ function RunView({ run }: { run: Run }) {
       </div>
       {m.dataset.include_drafts && <Notice tone="error">{t("val.draftsWarning")}</Notice>}
       {m.dataset.with_expected_verdict < SMALL_SAMPLE && <Notice>{t("val.smallSample", { n: m.dataset.with_expected_verdict })}</Notice>}
+      {m.dataset.read < SMALL_SAMPLE && <Notice>{t("val.smallFieldSample", { n: m.dataset.read })}</Notice>}
       {m.dataset.not_read.length > 0 && <Notice>{t("val.notRead", { n: m.dataset.not_read.length })}</Notice>}
 
       <div className="flex flex-wrap gap-4">

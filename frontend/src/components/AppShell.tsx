@@ -113,10 +113,12 @@ export function AppShell({ user }: { user: User }) {
           </div>
         </div>
       </header>
-      <main className="ll-main mx-auto w-full max-w-shell flex-[1_0_auto] px-6 pt-8 pb-16">
-        <Outlet />
-      </main>
-      <Footer />
+      <div className="ll-content flex min-w-0 flex-1 flex-col">
+        <main className="ll-main mx-auto w-full max-w-shell flex-[1_0_auto] px-6 pt-8 pb-16">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
     </div>
   );
 }

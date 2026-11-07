@@ -113,7 +113,7 @@ def validate(include_drafts: bool, out: Path | None) -> int:
         metrics = run_validation(
             db,
             get_storage(),
-            model=s.extraction_model,
+            model=s.validation_model,
             cache_dir=s.extraction_cache_dir,
             include_drafts=include_drafts,
         )
