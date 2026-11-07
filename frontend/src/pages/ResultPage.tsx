@@ -2,6 +2,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useScan, useVerdict, type Scan, type Verdict } from "../api/scans";
+import { AskExpert } from "../components/AskExpert";
 import { ComparisonTable } from "../components/ComparisonTable";
 import {
   BookIcon,
@@ -258,6 +259,7 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
               <DownloadIcon />
               {t("result.exportSummary")}
             </ButtonLink>
+            <AskExpert scanId={scan.id} verdict={verdict} />
             <ButtonLink to={`/compare?a=${scan.id}`} variant="secondary" className="justify-start">
               <CompareIcon />
               {t("compare.link")}

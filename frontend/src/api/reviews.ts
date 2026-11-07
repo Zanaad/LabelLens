@@ -13,6 +13,7 @@ export type ReviewItem = {
   checked_at: string;
   my_rating: RatingValue | null;
   ratings: number;
+  requested: boolean; // the pharmacist asked an expert to look at it
 };
 
 export type MyRating = {

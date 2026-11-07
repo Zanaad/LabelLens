@@ -4,7 +4,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
@@ -18,7 +18,7 @@ from app.services.storage import Storage, get_storage
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
-reviewer = require_roles(Role.expert, Role.admin)
+reviewer = require_roles(Role.expert)  # admins run the system; only experts judge verdicts
 
 
 def _verdict(db: Session, verdict_id: uuid.UUID) -> Verdict:
@@ -54,7 +54,14 @@ def review_queue(db: Session = Depends(get_db), user: User = Depends(reviewer)) 
         .outerjoin(Extraction, Verdict.extraction_id == Extraction.id)
         .outerjoin(mine, mine.c.verdict_id == Verdict.id)
         .outerjoin(counts, counts.c.verdict_id == Verdict.id)
-        .order_by(Verdict.created_at.desc())
+        # Results a pharmacist asked about, not yet rated by this expert, come first.
+        .order_by(
+            case(
+                (and_(Verdict.review_requested_at.is_not(None), mine.c.rating.is_(None)), 0),
+                else_=1,
+            ),
+            Verdict.created_at.desc(),
+        )
         .limit(500)
     ).all()
     return [
@@ -67,6 +74,7 @@ def review_queue(db: Session = Depends(get_db), user: User = Depends(reviewer)) 
             checked_at=v.created_at,
             my_rating=rating,
             ratings=n or 0,
+            requested=v.review_requested_at is not None,
         )
         for v, fields, rating, n in rows
     ]

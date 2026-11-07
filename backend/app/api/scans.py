@@ -1,6 +1,7 @@
 import dataclasses
 import hashlib
 import uuid
+from datetime import UTC, datetime
 from pathlib import PurePath
 from typing import Any
 
@@ -16,6 +17,7 @@ from app.api.schemas import (
     FieldsUpdate,
     LabelTextIn,
     ReviewOpinion,
+    ReviewRequestIn,
     ScanHistory,
     ScanListItem,
     ScanOut,
@@ -260,6 +262,8 @@ REVIEW_PRIORITY = (Rating.disagree, Rating.unsure, Rating.agree)
 def verdict_out(v: Verdict, reviews: list[ReviewOpinion] | None = None) -> VerdictOut:
     return VerdictOut(
         reviews=reviews or [],
+        review_requested_at=v.review_requested_at,
+        review_question=v.review_question,
         id=v.id,
         created_at=v.created_at,
         rules_version=v.rules_version,
@@ -330,6 +334,24 @@ def latest_verdict(db: Session, scan_id: uuid.UUID) -> Verdict | None:
         .limit(1)
     )
     return db.scalar(query)
+
+
+@router.post("/{scan_id}/review-request", response_model=VerdictOut)
+def ask_expert(
+    scan_id: uuid.UUID,
+    body: ReviewRequestIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(pharmacist_only),
+) -> VerdictOut:
+    """Asks an expert to look at the latest result; asking again only updates the question."""
+    verdict = latest_verdict(db, own_scan(db, scan_id, user).id)
+    if verdict is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="no_verdict")
+    verdict.review_requested_at = verdict.review_requested_at or datetime.now(UTC)
+    verdict.review_question = (body.question or "").strip() or None
+    audit(db, "scan.review_request", user_id=user.id, entity_type="scan", entity_id=verdict.scan_id)
+    db.commit()
+    return verdict_out(verdict, _opinions(db, [verdict.id]).get(verdict.id))
 
 
 @router.get("/{scan_id}/verdict", response_model=VerdictOut)

@@ -4,13 +4,13 @@ import { errorCode } from "../api/client";
 import { useRateVerdict, useReview, useReviewQueue, type RatingValue, type ReviewDetail } from "../api/reviews";
 import { FIELD_KEYS, type VerdictCode } from "../api/scans";
 import { ComparisonTable } from "../components/ComparisonTable";
-import { ArrowLeftIcon, ArrowRightIcon } from "../components/icons";
+import { ArrowLeftIcon, ArrowRightIcon, ReviewIcon } from "../components/icons";
 import { Button, ButtonLink, Eyebrow, Notice, inputClass } from "../components/ui";
 import { VERDICT_OPTIONS, VerdictChip, say } from "../components/verdict";
 import { formatDate, t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
 
-type Filter = "pending" | "mine" | "all";
+type Filter = "pending" | "asked" | "mine" | "all";
 const panel = "flex min-w-0 flex-col gap-3 rounded-control border border-border bg-surface"; // tables run edge to edge
 const card = `${panel} p-6`;
 const RATINGS: RatingValue[] = ["agree", "disagree", "unsure"];
@@ -19,9 +19,12 @@ export function ReviewQueuePage() {
   const queue = useReviewQueue();
   const [filter, setFilter] = useState<Filter>("pending");
   const all = queue.data ?? [];
-  const shown = all.filter((r) => (filter === "pending" ? !r.my_rating : filter === "mine" ? !!r.my_rating : true));
+  const shown = all.filter((r) =>
+    filter === "pending" ? !r.my_rating : filter === "asked" ? r.requested : filter === "mine" ? !!r.my_rating : true,
+  );
   const filters: [Filter, MessageKey][] = [
     ["pending", "queue.toReview"],
+    ["asked", "queue.asked"],
     ["mine", "queue.reviewed"],
     ["all", "queue.all"],
   ];
@@ -75,6 +78,12 @@ export function ReviewQueuePage() {
                     <th scope="row" className={`${td} font-semibold`}>
                       {r.product_name ?? t("result.unnamed")}
                       <span className="block font-mono text-xs font-normal text-muted">{r.scan_id.slice(0, 8).toUpperCase()}</span>
+                      {r.requested && (
+                        <span className="mt-1 flex items-center gap-1.5 text-sm font-normal">
+                          <ReviewIcon size={16} />
+                          {t("queue.askedTag")}
+                        </span>
+                      )}
                     </th>
                     <td className={td}>{r.plant ?? "–"}</td>
                     <td className={td}>
@@ -234,6 +243,15 @@ export function ReviewDetailPage() {
                 </li>
               ))}
             </ol>
+            {r.verdict.review_requested_at && (
+              <div className="rounded-control border border-border bg-surface-2 p-4">
+                <p className="m-0 inline-flex items-center gap-2 font-semibold">
+                  <ReviewIcon size={18} />
+                  {t("queue.pharmacistQuestion")}
+                </p>
+                <p className="m-0 mt-1">{r.verdict.review_question ? `“${r.verdict.review_question}”` : t("queue.askedTag")}</p>
+              </div>
+            )}
           </section>
           <RatingForm key={id} verdictId={id} review={r} nextId={nextId} />
         </div>

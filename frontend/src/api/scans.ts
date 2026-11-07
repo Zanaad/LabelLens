@@ -80,6 +80,8 @@ export type Verdict = {
   missing: ResultItem[];
   sources: Source[];
   reviews: ReviewOpinion[];
+  review_requested_at: string | null;
+  review_question: string | null;
 };
 
 export type ScanListItem = {
@@ -230,6 +232,19 @@ export function useVerdict(id: string) {
 
 export function useVerdictHistory(id: string) {
   return useQuery({ queryKey: verdictsKey(id), queryFn: () => api<Verdict[]>(`/api/scans/${id}/verdicts`) });
+}
+
+// Asks an expert to look at the latest result; the expert queue lists these first.
+export function useAskExpert(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (question: string | null) =>
+      api<Verdict>(`/api/scans/${id}/review-request`, { method: "POST", json: { question } }),
+    onSuccess: (verdict) => {
+      qc.setQueryData(verdictKey(id), verdict);
+      void qc.invalidateQueries({ queryKey: historyKey(id) });
+    },
+  });
 }
 
 // Compares the reviewed fields with the reference table and stores the verdict.

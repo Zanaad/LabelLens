@@ -18,6 +18,7 @@ import {
   type Verdict,
 } from "../api/scans";
 import { ArrowRightIcon, CompareIcon, DocumentIcon, DownloadIcon, HistoryIcon, NotStatedIcon, ShareIcon } from "../components/icons";
+import { AskExpert } from "../components/AskExpert";
 import { ShareDialog } from "../components/ShareDialog";
 import { Button, ButtonLink, Eyebrow, Notice, initials, inputClass } from "../components/ui";
 import { ReviewerOpinions, VERDICT, VerdictChip, say } from "../components/verdict";
@@ -174,6 +175,9 @@ function VerdictSection({ scan, verdict, previous }: { scan: Scan; verdict: Verd
             ))}
           </ol>
           <ReviewerOpinions reviews={verdict.reviews} />
+          <div className="no-print flex flex-col items-start">
+            <AskExpert scanId={scan.id} verdict={verdict} />
+          </div>
           <Link to={`/scans/${scan.id}/result`} className="inline-flex min-h-control items-center gap-1.5 font-medium">
             {t("detail.seeResult")}
             <ArrowRightIcon />

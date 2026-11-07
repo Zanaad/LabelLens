@@ -71,6 +71,9 @@ class Verdict(IdMixin, CreatedMixin, Base):
     comparison_json: Mapped[dict[str, Any]]
     missing_json: Mapped[dict[str, Any]]
     sources_json: Mapped[dict[str, Any]]
+    # Set when the pharmacist asks an expert to look at this result (listed first in the queue).
+    review_requested_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    review_question: Mapped[str | None] = mapped_column(Text)
 
 
 class ShareLink(IdMixin, CreatedMixin, Base):
