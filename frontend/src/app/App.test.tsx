@@ -221,6 +221,26 @@ describe("result", () => {
   });
 });
 
+describe("compare", () => {
+  it("lists only the fields that differ between two checked scans", async () => {
+    const other = { ...scan, id: "s2", product_name: "CAMOMILE PLUS", fields: { ...scan.fields, solvent: stated("ethanol 60%") } };
+    const item = { created_at: NOW, status: "checked", missing: 1, verdict: "partly_matches" };
+    mockApi(pharmacist, (url) =>
+      url === "/api/scans"
+        ? { status: 200, body: [{ ...item, id: "s1", product_name: "MEADOW CUP", plant: "chamomile" }, { ...item, id: "s2", product_name: "CAMOMILE PLUS", plant: "chamomile" }] }
+        : url === "/api/scans/s1" || url === "/api/scans/s2"
+          ? { status: 200, body: url.endsWith("s1") ? scan : other }
+          : url.endsWith("/verdict")
+            ? { status: 200, body: verdict }
+            : undefined,
+    );
+    renderApp("/compare?a=s1&b=s2");
+    expect(await screen.findAllByText("Differs")).toHaveLength(1);
+    expect(screen.getAllByText("Same")).toHaveLength(5);
+    expect(screen.getAllByText("Neither states it")).toHaveLength(4);
+  });
+});
+
 describe("history and sharing", () => {
   const now = new Date().toISOString();
   const row = { created_at: now, status: "checked", missing: 0 };

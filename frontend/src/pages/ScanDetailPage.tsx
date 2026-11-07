@@ -17,7 +17,7 @@ import {
   type Share,
   type Verdict,
 } from "../api/scans";
-import { ArrowRightIcon, DocumentIcon, DownloadIcon, HistoryIcon, NotStatedIcon, ShareIcon } from "../components/icons";
+import { ArrowRightIcon, CompareIcon, DocumentIcon, DownloadIcon, HistoryIcon, NotStatedIcon, ShareIcon } from "../components/icons";
 import { ShareDialog } from "../components/ShareDialog";
 import { Button, ButtonLink, Eyebrow, Notice, initials, inputClass } from "../components/ui";
 import { VERDICT, VerdictChip, say } from "../components/verdict";
@@ -365,6 +365,10 @@ export function ScanDetailPage() {
               <ButtonLink to={`/scans/${s.id}/summary`} variant="secondary">
                 <DownloadIcon />
                 {t("detail.summary")}
+              </ButtonLink>
+              <ButtonLink to={`/compare?a=${s.id}`} variant="secondary">
+                <CompareIcon />
+                {t("compare.link")}
               </ButtonLink>
             </>
           )}

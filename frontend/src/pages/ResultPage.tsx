@@ -6,6 +6,7 @@ import { ComparisonTable } from "../components/ComparisonTable";
 import {
   BookIcon,
   CloseIcon,
+  CompareIcon,
   CopyIcon,
   DownloadIcon,
   EditIcon,
@@ -255,6 +256,10 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
             <ButtonLink to={`/scans/${scan.id}/summary`} variant="secondary" className="justify-start">
               <DownloadIcon />
               {t("result.exportSummary")}
+            </ButtonLink>
+            <ButtonLink to={`/compare?a=${scan.id}`} variant="secondary" className="justify-start">
+              <CompareIcon />
+              {t("compare.link")}
             </ButtonLink>
             <Button variant="secondary" onClick={copy} className="justify-start">
               <CopyIcon />

@@ -6,6 +6,7 @@ import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { AdminPage } from "../pages/AdminPage";
 import { AnnotationEditorPage, AnnotationsPage } from "../pages/AnnotationsPage";
 import { ReviewDetailPage, ReviewQueuePage } from "../pages/ExpertReviewPage";
+import { ComparePage } from "../pages/ComparePage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { MethodsPage } from "../pages/MethodsPage";
 import { MyScansPage } from "../pages/MyScansPage";
@@ -51,6 +52,7 @@ export function App() {
           <Route path="/scans/:id/review" element={<ReviewPage />} />
           <Route path="/scans/:id/result" element={<ResultPage />} />
           <Route path="/scans/:id/summary" element={<SummaryPage />} />
+          <Route path="/compare" element={<ComparePage />} />
         </Route>
         <Route element={<RequireRole roles={["expert", "admin"]} />}>
           <Route path="/review" element={<ReviewQueuePage />} />

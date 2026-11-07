@@ -194,6 +194,12 @@ export const ShareIcon = (p: P) => (
     <path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6" />
   </Stroke>
 );
+export const CompareIcon = (p: P) => (
+  <Stroke {...p}>
+    <rect x="3" y="5" width="7.5" height="14" rx="1.5" />
+    <rect x="13.5" y="5" width="7.5" height="14" rx="1.5" />
+  </Stroke>
+);
 export const DownloadIcon = (p: P) => (
   <Stroke {...p}>
     <path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14" />
