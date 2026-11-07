@@ -5,7 +5,7 @@ from app.models.enums import AnnotationStatus, Rating, Role, ScanStatus, Verdict
 from app.models.reference import PlantName, ReferenceHistory, ReferencePreparation
 from app.models.review import Annotation, AuditLog, ExpertRating, ValidationRun
 from app.models.scan import Correction, Extraction, Scan, ShareLink, Verdict
-from app.models.user import Invitation, PasswordReset, User
+from app.models.user import EmailVerification, Invitation, PasswordReset, User
 
 __all__ = [
     "Annotation",
@@ -13,6 +13,7 @@ __all__ = [
     "AuditLog",
     "Base",
     "Correction",
+    "EmailVerification",
     "ExpertRating",
     "Extraction",
     "Invitation",

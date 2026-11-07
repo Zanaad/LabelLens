@@ -24,6 +24,25 @@ class User(IdMixin, TimestampMixin, Base):
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # Sessions issued before this moment are rejected (set when the password is reset).
     sessions_valid_from: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    # Self-registered accounts can sign in only once this is set.
+    email_verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+    @property
+    def email_verified(self) -> bool:
+        return self.email_verified_at is not None
+
+
+class EmailVerification(IdMixin, CreatedMixin, Base):
+    """One-time link that confirms a self-registered email. Only the token's SHA-256 is stored."""
+
+    __tablename__ = "email_verifications"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class PasswordReset(IdMixin, CreatedMixin, Base):

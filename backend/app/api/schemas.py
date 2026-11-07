@@ -22,6 +22,11 @@ class UserOut(BaseModel):
     organisation: str | None
     role: Role
     onboarded_at: datetime | None
+    email_verified: bool
+
+
+class TokenIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
 
 
 class RegisterIn(BaseModel):
@@ -203,6 +208,12 @@ class VerdictOut(BaseModel):
     missing: list[dict[str, Any]]
     sources: list[dict[str, Any]]
     reviews: list[ReviewOpinion] = []  # only filled for the pharmacist who owns the scan
+    review_requested_at: datetime | None = None
+    review_question: str | None = None
+
+
+class ReviewRequestIn(BaseModel):
+    question: str | None = Field(default=None, max_length=1000)
 
 
 # Password reset
@@ -254,6 +265,7 @@ class ReviewItem(BaseModel):
     checked_at: datetime
     my_rating: Rating | None
     ratings: int  # by all reviewers
+    requested: bool  # the pharmacist asked an expert to look at it
 
 
 class RatingIn(BaseModel):
@@ -365,6 +377,10 @@ class PlantNameOut(PlantNameFields):
 class ReferenceOut(BaseModel):
     preparations: list[PreparationOut]
     plant_names: list[PlantNameOut]
+
+
+class CheckIn(BaseModel):
+    verified: bool
 
 
 class ReferenceChange(BaseModel):

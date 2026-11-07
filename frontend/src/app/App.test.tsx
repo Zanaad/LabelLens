@@ -10,7 +10,7 @@ import { App } from "./App";
 
 const NOW = new Date().toISOString();
 
-const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null };
+const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null, email_verified: true };
 const expert: User = { ...pharmacist, id: "2", email: "besim@example.org", full_name: "Besim Hoxha", role: "expert" };
 
 // Generated per run so no password or token literal is ever committed.
@@ -93,8 +93,9 @@ describe("routing and auth", () => {
     expect(sentBody(fetchMock, "/api/auth/login")).toEqual({ email: "besim@example.org", password: PASSWORD, remember_me: false });
   });
 
-  it("registers with both consents", async () => {
-    const fetchMock = mockApi(null, (url) => (url === "/api/auth/register" ? { status: 201, body: pharmacist } : undefined));
+  it("registers with both consents and asks to confirm the email", async () => {
+    const unconfirmed = { ...pharmacist, email_verified: false };
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/register" ? { status: 201, body: unconfirmed } : undefined));
     renderApp("/register");
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Full name"), "Arta Krasniqi");
@@ -104,6 +105,14 @@ describe("routing and auth", () => {
     await user.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/auth/register")).toBe(true));
     expect(sentBody(fetchMock, "/api/auth/register")).toMatchObject({ accept_privacy: true, accept_terms: true });
+    expect(await screen.findByRole("heading", { level: 1, name: "Check your email" })).toBeInTheDocument();
+  });
+
+  it("confirms the email from the link's fragment and signs in", async () => {
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/verify-email" ? { status: 200, body: pharmacist } : undefined));
+    renderApp(`/verify-email#${SHARE_TOKEN}`);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/auth/verify-email")).toBe(true));
+    expect(sentBody(fetchMock, "/api/auth/verify-email")).toEqual({ token: SHARE_TOKEN });
   });
 
   it("reads the invitation token from the URL fragment", async () => {
@@ -401,10 +410,12 @@ describe("expert and admin", () => {
     expect(await screen.findByText("Matricaria recutita L.")).toBeInTheDocument();
     expect(screen.getByText("Sample, not checked")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit Herbal tea" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark Herbal tea as checked against the source" })).toBeInTheDocument();
     cleanup();
     mockApi(admin, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
     renderApp("/reference");
     expect(await screen.findByRole("button", { name: "Edit Herbal tea" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /as checked/ })).not.toBeInTheDocument(); // only experts check
   });
 
   it("shows validation numbers with their uncertainty and a table view", async () => {

@@ -15,11 +15,12 @@ from app.api.schemas import (
     PasswordResetIn,
     ProfileUpdate,
     RegisterIn,
+    TokenIn,
     UserOut,
 )
 from app.config import get_settings
 from app.db import get_db
-from app.models import PasswordReset, Role, User
+from app.models import EmailVerification, PasswordReset, Role, User
 from app.services.audit import audit
 from app.services.email import send_email
 from app.services.rate_limit import rate_limit
@@ -68,15 +69,55 @@ def email_exists(db: Session, email: str) -> bool:
     return db.scalar(select(User.id).where(User.email == email)) is not None
 
 
+VERIFY_SUBJECT = "Confirm your email for LabelLens"
+VERIFY_BODY = """Hello {name},
+
+Thank you for registering with LabelLens. To confirm this email address and sign in, open this
+link within {hours} hours:
+
+{link}
+
+The link works once. If you did not create an account, you can ignore this email.
+
+LabelLens (research prototype)
+"""
+
+
+def start_email_verification(db: Session, user: User, background: BackgroundTasks) -> None:
+    """Create a one-time link and email it after the response (caller commits)."""
+    s = get_settings()
+    token, token_hash = new_opaque_token()
+    db.add(
+        EmailVerification(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(hours=s.email_verification_ttl_hours),
+        )
+    )
+    body = VERIFY_BODY.format(
+        name=user.full_name,
+        hours=s.email_verification_ttl_hours,
+        link=f"{s.app_base_url.rstrip('/')}/verify-email#{token}",
+    )
+    background.add_task(send_email, user.email, VERIFY_SUBJECT, body)
+
+
 @router.post("/register", response_model=UserOut, status_code=201, dependencies=[auth_limit])
-def register(body: RegisterIn, response: Response, db: Session = Depends(get_db)) -> User:
-    """Self-registration always creates a Pharmacist account."""
+def register(
+    body: RegisterIn,
+    response: Response,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> User:
+    """Self-registration always creates a Pharmacist account. With email set up, the account
+    must confirm its address before it can sign in; without it, it is confirmed at once."""
     check_new_password(body.password)
     check_consent(body.accept_privacy, body.accept_terms)
     email = normalise_email(body.email)
     if email_exists(db, email):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="email_taken")
     now = datetime.now(UTC)
+    verify = bool(get_settings().smtp_host)
     user = User(
         email=email,
         password_hash=hash_password(body.password),
@@ -85,7 +126,8 @@ def register(body: RegisterIn, response: Response, db: Session = Depends(get_db)
         role=Role.pharmacist,
         consent_privacy_at=now,
         consent_terms_at=now,
-        last_login_at=now,
+        email_verified_at=None if verify else now,
+        last_login_at=None if verify else now,
     )
     db.add(user)
     try:
@@ -94,9 +136,47 @@ def register(body: RegisterIn, response: Response, db: Session = Depends(get_db)
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail="email_taken") from None
     audit(db, "auth.register", user_id=user.id, entity_type="user", entity_id=user.id)
+    if verify:
+        start_email_verification(db, user, background)
+    db.commit()
+    if not verify:
+        set_session_cookie(response, user)
+    return user
+
+
+@router.post("/verify-email", response_model=UserOut, dependencies=[auth_limit])
+def verify_email(body: TokenIn, response: Response, db: Session = Depends(get_db)) -> User:
+    """Confirms the address from the emailed link and signs the account in."""
+    now = datetime.now(UTC)
+    link = db.scalar(
+        select(EmailVerification).where(EmailVerification.token_hash == hash_token(body.token))
+    )
+    user = db.get(User, link.user_id) if link else None
+    if link is None or link.used_at or link.expires_at <= now or not (user and user.is_active):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="verification_invalid")
+    user.email_verified_at = user.email_verified_at or now
+    user.last_login_at = now
+    pending = select(EmailVerification).where(
+        EmailVerification.user_id == user.id, EmailVerification.used_at.is_(None)
+    )
+    for v in db.scalars(pending):
+        v.used_at = now
+    audit(db, "auth.email_verified", user_id=user.id, entity_type="user", entity_id=user.id)
     db.commit()
     set_session_cookie(response, user)
     return user
+
+
+@router.post("/resend-verification", status_code=202, dependencies=[auth_limit])
+def resend_verification(
+    body: ForgotPasswordIn, background: BackgroundTasks, db: Session = Depends(get_db)
+) -> Response:
+    user = db.scalar(select(User).where(User.email == normalise_email(body.email)))
+    if user is not None and user.is_active and not user.email_verified:
+        start_email_verification(db, user, background)
+        db.commit()
+    # Same answer either way, so the form cannot be used to find out who has an account.
+    return Response(status_code=202)
 
 
 @router.post("/login", response_model=UserOut, dependencies=[auth_limit])
@@ -107,6 +187,8 @@ def login(body: LoginIn, response: Response, db: Session = Depends(get_db)) -> U
         audit(db, "auth.login_failed", details={"reason": "invalid_credentials"})
         db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="invalid_credentials")
+    if not user.email_verified:  # only said after the right password, so it reveals nothing
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="email_not_verified")
     user.last_login_at = datetime.now(UTC)
     audit(db, "auth.login", user_id=user.id)
     db.commit()

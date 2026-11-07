@@ -3,6 +3,7 @@
 import os
 import secrets
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 os.environ.setdefault("APP_ENV", "test")
 os.environ["EXTRACTION_PROVIDER"] = "cached"
@@ -72,6 +73,7 @@ def make_user(db: Session, email: str, role: Role = Role.pharmacist, active: boo
         full_name=email.split("@")[0].title(),
         role=role,
         is_active=active,
+        email_verified_at=datetime.now(UTC),
     )
     db.add(user)
     db.commit()

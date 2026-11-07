@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     smtp_password: str = Field(default="", repr=False)
     smtp_from: str = "LabelLens <no-reply@labellens.local>"
     password_reset_ttl_minutes: int = 60
+    email_verification_ttl_hours: int = 24
 
     @field_validator("cors_origins")
     @classmethod

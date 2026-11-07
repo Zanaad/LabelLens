@@ -99,6 +99,7 @@ def create_admin(email: str, name: str, password: str) -> int:
             role=Role.admin,
             consent_privacy_at=datetime.now(UTC),
             consent_terms_at=datetime.now(UTC),
+            email_verified_at=datetime.now(UTC),
         )
         db.add(user)
         db.flush()

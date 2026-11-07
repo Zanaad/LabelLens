@@ -22,6 +22,7 @@ import { ScanPage } from "../pages/ScanPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { SignInPage } from "../pages/SignInPage";
 import { SummaryPage } from "../pages/SummaryPage";
+import { VerifyEmailPage } from "../pages/VerifyEmailPage";
 import { NotFoundPage } from "../pages/StatusPages";
 import { HomeRedirect, RedirectIfSignedIn, RequireAuth, RequireRole } from "./guards";
 
@@ -39,6 +40,7 @@ export function App() {
       <Route path="/accept-invite" element={<RedirectIfSignedIn><AcceptInvitePage /></RedirectIfSignedIn>} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/p" element={<PatientPage />} />
 
@@ -54,7 +56,7 @@ export function App() {
           <Route path="/scans/:id/summary" element={<SummaryPage />} />
           <Route path="/compare" element={<ComparePage />} />
         </Route>
-        <Route element={<RequireRole roles={["expert", "admin"]} />}>
+        <Route element={<RequireRole roles={["expert"]} />}>
           <Route path="/review" element={<ReviewQueuePage />} />
           <Route path="/review/:id" element={<ReviewDetailPage />} />
         </Route>

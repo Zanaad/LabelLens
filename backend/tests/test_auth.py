@@ -137,6 +137,41 @@ def test_password_reset_by_email(client: TestClient, db: Session, monkeypatch):
     login(client, "arta@example.org", new_password)
 
 
+def test_registration_needs_a_confirmed_email_when_email_is_set_up(
+    client: TestClient, db: Session, monkeypatch
+):
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr("app.api.auth.send_email", lambda to, _s, body: sent.append((to, body)))
+    monkeypatch.setenv("SMTP_HOST", "smtp.test")
+    get_settings.cache_clear()
+    try:
+        r = client.post("/api/auth/register", json=REG)
+        assert r.status_code == 201 and r.json()["email_verified"] is False
+        assert "set-cookie" not in r.headers  # not signed in yet
+        creds = {"email": REG["email"], "password": PASSWORD}
+        blocked = client.post("/api/auth/login", json=creds)
+        assert blocked.status_code == 403 and blocked.json()["detail"] == "email_not_verified"
+        wrong = client.post("/api/auth/login", json={**creds, "password": WRONG})
+        assert wrong.json()["detail"] == "invalid_credentials"  # status only after the password
+
+        resend = "/api/auth/resend-verification"
+        assert client.post(resend, json={"email": "nobody@example.org"}).status_code == 202
+        assert client.post(resend, json={"email": REG["email"]}).status_code == 202
+        assert len(sent) == 2 and all(to == "arta.krasniqi@example.org" for to, _ in sent)
+
+        token = sent[0][1].split("/verify-email#")[1].split()[0]
+        verified = client.post("/api/auth/verify-email", json={"token": token})
+        assert verified.status_code == 200 and verified.json()["email_verified"] is True
+        assert client.get("/api/auth/me").status_code == 200  # signed in by the link
+        again = sent[1][1].split("/verify-email#")[1].split()[0]
+        reused = client.post("/api/auth/verify-email", json={"token": again})
+        assert reused.json()["detail"] == "verification_invalid"  # all links used up
+        assert client.post("/api/auth/login", json=creds).status_code == 200
+    finally:
+        monkeypatch.delenv("SMTP_HOST")
+        get_settings.cache_clear()
+
+
 def test_change_password(client: TestClient, db: Session):
     user = make_user(db, "arta@example.org")
     new_password = secrets.token_urlsafe(16)

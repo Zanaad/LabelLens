@@ -147,6 +147,7 @@ def accept_invitation(
         role=inv.role,
         consent_privacy_at=now,
         consent_terms_at=now,
+        email_verified_at=now,  # the invitation link was sent to this address
         last_login_at=now,
     )
     db.add(user)

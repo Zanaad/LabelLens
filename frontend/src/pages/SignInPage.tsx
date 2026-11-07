@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useLogin } from "../api/auth";
+import { useLogin, useResendVerification } from "../api/auth";
 import { errorCode } from "../api/client";
 import { ROLE_HOME } from "../app/navigation";
 import { AuthHeading, AuthLayout } from "../components/AuthLayout";
@@ -12,6 +12,7 @@ export function SignInPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const login = useLogin();
+  const resend = useResendVerification();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -40,6 +41,14 @@ export function SignInPage() {
         {login.isError && (
           <Notice tone="error">{t(`error.${errorCode(login.error)}` as MessageKey)}</Notice>
         )}
+        {login.isError && errorCode(login.error) === "email_not_verified" &&
+          (resend.isSuccess ? (
+            <Notice tone="success">{t("register.resent")}</Notice>
+          ) : (
+            <Button variant="secondary" disabled={resend.isPending} onClick={() => resend.mutate(email)}>
+              {t("register.resend")}
+            </Button>
+          ))}
         <Field
           label={t("signIn.email")}
           type="email"
