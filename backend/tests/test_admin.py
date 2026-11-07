@@ -91,6 +91,13 @@ def test_expert_review(client: TestClient, db: Session, cache_dir: Path, referen
     assert agree.json()["correct_verdict"] is None
     assert client.get("/api/reviews").json()[0]["my_rating"] == "agree"  # updated, not duplicated
 
+    client.post("/api/auth/logout")
+    login(client, "arta@example.org")
+    log = client.get(f"/api/scans/{scan['id']}/history").json()["activity"]
+    review = [a for a in log if a["action"] == "scan.review"][-1]  # one entry per rating change
+    assert review["by"] is None  # the expert stays anonymous
+    assert review["details"] == {"rating": "agree"}
+
 
 def test_reference_editing(client: TestClient, db: Session):
     row = {"herb_latin": "Valeriana officinalis", "plant_part": "Root", "preparation_type": "Tea"}

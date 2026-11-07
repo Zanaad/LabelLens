@@ -337,6 +337,9 @@ model name; cached mode needs it to find them.
 - **First admin** is created on the first start from `ADMIN_EMAIL`, `ADMIN_NAME` and
   `ADMIN_PASSWORD` in `.env` (`seed-admin`, run by the container entrypoint; it does nothing if an
   admin already exists). More admins: `python -m app.cli create-admin`, or an invitation.
+- **Reference table** is loaded from `data/reference/ema-draft.json` on start by `seed-reference`,
+  only while the table is empty (agreed: no "already seeded" flag). If an admin deletes every row
+  and the backend restarts, the draft rows come back. `import-reference` still upserts by hand.
 - **Tests** run on SQLite locally (fast); CI also runs them on PostgreSQL and checks that the
   database migrations match the code.
 - **Fonts** load from Google Fonts, like the design. We can host them ourselves later for privacy.

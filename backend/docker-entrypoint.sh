@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 alembic upgrade head
-# Never blocks startup; a bad ADMIN_* value is printed to the log.
+# Seeding never blocks startup; problems are printed to the log.
 python -m app.cli seed-admin || true
+python -m app.cli seed-reference /data/reference/ema-draft.json || true
 exec "$@"

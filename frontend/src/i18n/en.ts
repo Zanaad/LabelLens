@@ -630,7 +630,11 @@ export const en = {
   "activity.scan.check": "checked the evidence: {verdict}",
   "activity.scan.share": "shared a patient link",
   "activity.scan.share_revoke": "revoked a patient link",
-  "activity.scan.review": "reviewed the verdict: {rating}",
+  "activity.scan.review": "{rating}",
+  "activity.anExpert": "An expert",
+  "activity.rating.agree": "agreed with the verdict",
+  "activity.rating.disagree": "disagreed with the verdict",
+  "activity.rating.unsure": "was unsure about the verdict",
 
   "share.title": "Share patient link",
   "share.intro":

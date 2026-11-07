@@ -1,6 +1,7 @@
 # Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), seed-admin (runs at
-# container start), import-reference (upsert from JSON), run-validation (same as Validation -> Run)
-# and fetch-readings (live API).
+# container start), seed-reference (same, loads the reference file if the table is empty),
+# import-reference (upsert from JSON), run-validation (same as Validation -> Run) and
+# fetch-readings (live API).
 
 import argparse
 import getpass
@@ -118,6 +119,20 @@ def seed_admin() -> int:
     return create_admin(email, os.environ.get("ADMIN_NAME") or "Administrator", password)
 
 
+def seed_reference(path: Path) -> int:
+    """First start: loads the reference file only while the reference table is empty."""
+    with Session(get_engine()) as db:
+        if db.scalar(select(ReferencePreparation.id).limit(1)) is not None:
+            return 0
+        try:
+            data = ReferenceFile.model_validate_json(path.read_bytes())
+        except (OSError, ValidationError) as e:
+            print(f"Could not seed the reference table from {path}:\n{e}")
+            return 1
+        print(f"Seeded the reference table: {import_reference(db, data)} rows.")
+    return 0
+
+
 def validate(include_drafts: bool, out: Path | None) -> int:
     s = get_settings()
     with Session(get_engine()) as db:
@@ -184,6 +199,7 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--out", type=Path, help="also write the metrics as JSON to this folder")
     sub.add_parser("fetch-readings")
     sub.add_parser("seed-admin")
+    sub.add_parser("seed-reference").add_argument("path", type=Path)
     args = parser.parse_args(argv)
     if args.cmd == "run-validation":
         return validate(args.include_drafts, args.out)
@@ -191,6 +207,8 @@ def main(argv: list[str] | None = None) -> int:
         return fetch_readings()
     if args.cmd == "seed-admin":
         return seed_admin()
+    if args.cmd == "seed-reference":
+        return seed_reference(args.path)
     if args.cmd == "create-admin":
         password = os.environ.get("ADMIN_PASSWORD") or getpass.getpass("Password: ")
         return create_admin(args.email, args.name, password)

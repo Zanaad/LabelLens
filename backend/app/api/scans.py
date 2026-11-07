@@ -415,7 +415,13 @@ def scan_history(
             for c, name in corrections
         ],
         activity=[
-            ActivityOut(action=a.action, by=name, at=a.created_at, details=a.details_json)
+            # Expert reviews stay anonymous for the pharmacist.
+            ActivityOut(
+                action=a.action,
+                by=None if a.action == "scan.review" else name,
+                at=a.created_at,
+                details=a.details_json,
+            )
             for a, name in activity
         ],
         shares=[ShareOut.model_validate(s) for s in shares],

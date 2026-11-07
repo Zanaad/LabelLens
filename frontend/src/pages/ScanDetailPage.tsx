@@ -281,13 +281,14 @@ function ActivitySection({ scanId, history }: { scanId: string; history: ScanHis
                 aria-hidden="true"
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-weak text-xs font-bold text-accent"
               >
-                {initials(a.by ?? "")}
+                {initials(a.action === "scan.review" ? t("activity.anExpert") : (a.by ?? ""))}
               </span>
               <div>
                 <p className="m-0 text-body-sm">
-                  <strong>{a.by}</strong>{" "}
+                  <strong>{a.action === "scan.review" ? t("activity.anExpert") : a.by}</strong>{" "}
                   {t(`activity.${a.action}` as MessageKey, {
                     verdict: a.details?.verdict ? t(VERDICT[a.details.verdict as Verdict["verdict"]].short) : "",
+                    rating: a.details?.rating ? t(`activity.rating.${a.details.rating}` as MessageKey) : "",
                   })}
                 </p>
                 <p className="m-0 font-mono text-eyebrow tracking-normal text-muted">{formatDateTime(a.at)}</p>
