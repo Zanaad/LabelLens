@@ -49,7 +49,9 @@ Generate each secret with `python -c "import secrets; print(secrets.token_urlsaf
 - API docs: http://localhost:8000/api/docs
 
 Pharmacists register themselves at `/register`. Expert reviewers and admins are invitation-only;
-create the first admin from the command line (it asks for the password):
+the first admin is created on the first start from `ADMIN_EMAIL`, `ADMIN_NAME` and `ADMIN_PASSWORD`
+in `.env` (only if no admin exists yet; remove the password from `.env` afterwards). To add another
+admin by hand (it asks for the password):
 
 ```bash
 docker compose exec backend python -m app.cli create-admin --email you@example.org --name "Your Name"
@@ -82,14 +84,6 @@ GROQ_API_KEY=                  # your private GroqCloud key
 Run `docker compose up -d --build backend`. Keep the key only in `.env`, not `.env.example`.
 Groq's free tier has rate limits; check your account's limits before a demo. No paid tier is
 selected automatically. Do not scan labels containing patient or personal information.
-
-To read real labels with Claude, set these in `.env` and restart:
-
-```bash
-EXTRACTION_PROVIDER=claude
-EXTRACTION_MODEL=claude-opus-5-5     # or another Claude model, e.g. claude-sonnet-5-5
-EXTRACTION_API_KEY=                  # your Anthropic API key
-```
 
 Every real reading is saved to `data/extraction_cache/` (keyed by input, prompt version and
 model), so it can be replayed later with the cached provider and used for validation.
@@ -182,9 +176,9 @@ Validation measures how often LabelLens is right on labels whose correct answers
    matching, and a plain AI prompt without our rules), expert agreement, and every mistake. All
    numbers come with a 95% confidence range.
 
-Labels without a saved reading are left out of the field and end-to-end numbers. With an API key
-with the configured live provider, `python -m app.cli fetch-readings` reads them (and the
-plain-prompt baseline) through Groq or Claude; the readings are saved for later runs.
+Labels without a saved reading are left out of the field and end-to-end numbers. With
+`EXTRACTION_PROVIDER=groq` and a Groq key, `python -m app.cli fetch-readings` reads them (and the
+plain-prompt baseline); the readings are saved for later runs.
 
 Every number used in the pitch must come from a stored run over Final labels.
 

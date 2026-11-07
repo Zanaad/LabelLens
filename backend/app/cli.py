@@ -1,5 +1,6 @@
-# Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), import-reference
-# (upsert from JSON), run-validation (same as Validation -> Run) and fetch-readings (live API).
+# Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), seed-admin (runs at
+# container start), import-reference (upsert from JSON), run-validation (same as Validation -> Run)
+# and fetch-readings (live API).
 
 import argparse
 import getpass
@@ -18,7 +19,6 @@ from app.config import get_settings
 from app.db import get_engine
 from app.extraction.providers import (
     PLAIN_PROMPT_VERSION,
-    ClaudeProvider,
     ExtractionError,
     GroqProvider,
     cache_key,
@@ -107,6 +107,17 @@ def create_admin(email: str, name: str, password: str) -> int:
     return 0
 
 
+def seed_admin() -> int:
+    """First start: creates the admin from ADMIN_EMAIL/ADMIN_PASSWORD if no admin exists yet."""
+    email, password = os.environ.get("ADMIN_EMAIL"), os.environ.get("ADMIN_PASSWORD")
+    if not email or not password:
+        return 0
+    with Session(get_engine()) as db:
+        if db.scalar(select(User.id).where(User.role == Role.admin).limit(1)):
+            return 0
+    return create_admin(email, os.environ.get("ADMIN_NAME") or "Administrator", password)
+
+
 def validate(include_drafts: bool, out: Path | None) -> int:
     s = get_settings()
     with Session(get_engine()) as db:
@@ -137,14 +148,10 @@ def validate(include_drafts: bool, out: Path | None) -> int:
 def fetch_readings() -> int:
     """Fetches unsaved readings and baselines with the configured live provider."""
     s = get_settings()
-    provider: GroqProvider | ClaudeProvider
-    if s.extraction_provider == "groq":
-        provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
-    elif s.extraction_provider == "claude":
-        provider = ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
-    else:
-        print("Set EXTRACTION_PROVIDER to groq or claude before fetching readings.")
+    if s.extraction_provider != "groq":
+        print("Set EXTRACTION_PROVIDER to groq before fetching readings.")
         return 1
+    provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
     storage = get_storage()
     fetched = 0
     with Session(get_engine()) as db:
@@ -176,11 +183,14 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--include-drafts", action="store_true")
     v.add_argument("--out", type=Path, help="also write the metrics as JSON to this folder")
     sub.add_parser("fetch-readings")
+    sub.add_parser("seed-admin")
     args = parser.parse_args(argv)
     if args.cmd == "run-validation":
         return validate(args.include_drafts, args.out)
     if args.cmd == "fetch-readings":
         return fetch_readings()
+    if args.cmd == "seed-admin":
+        return seed_admin()
     if args.cmd == "create-admin":
         password = os.environ.get("ADMIN_PASSWORD") or getpass.getpass("Password: ")
         return create_admin(args.email, args.name, password)
