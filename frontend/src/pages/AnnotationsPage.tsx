@@ -23,11 +23,12 @@ const card = `${panel} p-6`;
 const STATUSES: AnnotationStatus[] = ["draft", "in_review", "final"];
 const LABELS = "/validation/labels";
 
-// Validation page title, plus Runs / Labels tabs for experts (the only role that sees labels).
-// Lives here, not in ValidationPage, so the label pages don't pull in its chart library.
+// Validation page title, plus Runs / Labels tabs for experts (who edit labels) and admins (who
+// read them). Lives here, not in ValidationPage, so the label pages don't pull in its chart library.
 export function ValidationHeader() {
   const { pathname } = useLocation();
-  const isExpert = useMe().data?.role === "expert";
+  const role = useMe().data?.role;
+  const showTabs = role === "expert" || role === "admin";
   const tabs = [
     { to: "/validation", label: t("val.tabRuns"), active: pathname === "/validation" },
     { to: LABELS, label: t("val.tabLabels"), active: pathname.startsWith(LABELS) },
@@ -38,7 +39,7 @@ export function ValidationHeader() {
         <Eyebrow>{t("val.eyebrow")}</Eyebrow>
         <h1 className="m-0 text-page font-semibold">{t("val.title")}</h1>
       </div>
-      {isExpert && (
+      {showTabs && (
         <nav aria-label={t("val.tabs")} className="flex flex-wrap gap-1 border-b border-border">
           {tabs.map((tab) => (
             <Link
@@ -164,18 +165,70 @@ function LabelsTable() {
   );
 }
 
-// Experts only: validation labels are the answer key, so the team that runs the system doesn't write them.
+// Validation labels are the answer key: experts write them; admins, who run validation, only read
+// them, so the team that runs the system doesn't write its own answer key.
 export function LabelsPage() {
+  const canEdit = useMe().data?.role === "expert";
   return (
     <div className="flex flex-col gap-6">
       <ValidationHeader />
       <p className="m-0 max-w-[75ch] text-muted">{t("annot.intro")}</p>
+      {!canEdit && <Notice>{t("annot.readOnly")}</Notice>}
       <div className="flex flex-wrap items-start gap-6">
         <LabelsTable />
-        <div className="flex-[1_1_320px]">
-          <AddLabel />
-        </div>
+        {canEdit && (
+          <div className="flex-[1_1_320px]">
+            <AddLabel />
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// What an admin sees: the same label, fields and expected verdict, with nothing to change.
+function LabelView({ annotation }: { annotation: Annotation }) {
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      <LabelImage annotation={annotation} />
+      <section aria-labelledby="view-title" className={`${card} flex-[1.3_1_520px]`}>
+        <h2 id="view-title" className="m-0 text-xl font-semibold">
+          {annotation.title}
+        </h2>
+        <p className="m-0 text-sm text-muted">{t(`annot.status.${annotation.status}`)}</p>
+        <h3 className="m-0 text-lg font-semibold">{t("annot.fieldsTitle")}</h3>
+        <dl className="m-0 grid grid-cols-[minmax(140px,40%)_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-body-sm">
+          {FIELD_KEYS.map((k) => {
+            const value = annotation.fields[k];
+            return (
+              <div key={k} className="contents">
+                <dt className="text-muted">{t(`field.${k}` as MessageKey)}</dt>
+                <dd className={`m-0 ${value ? "" : "text-missing-fg italic"}`}>{value ?? t("review.notStated")}</dd>
+              </div>
+            );
+          })}
+        </dl>
+        <div className="flex flex-col gap-1.5">
+          <span className="font-semibold">{t("annot.expected")}</span>
+          {annotation.expected_verdict ? (
+            <VerdictChip verdict={annotation.expected_verdict} internal />
+          ) : (
+            <span className="text-body-sm text-muted">{t("annot.notSet")}</span>
+          )}
+          {annotation.expected_by && annotation.expected_at && (
+            <span className="text-sm text-muted">{t("annot.expectedBy", { name: annotation.expected_by, date: formatDateTime(annotation.expected_at) })}</span>
+          )}
+        </div>
+        {annotation.checked_by && annotation.checked_at && (
+          <p className="m-0 text-sm text-muted">{t("annot.checkedBy", { name: annotation.checked_by, date: formatDateTime(annotation.checked_at) })}</p>
+        )}
+        {annotation.notes && (
+          <div className="flex flex-col gap-1.5">
+            <span className="font-semibold">{t("annot.notes")}</span>
+            <p className="m-0 text-body-sm whitespace-pre-line">{annotation.notes}</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -350,6 +403,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
 export function LabelEditorPage() {
   const { id = "" } = useParams();
   const annotation = useAnnotation(id);
+  const canEdit = useMe().data?.role === "expert";
   if (annotation.isError) return <NotFoundPage />;
   return (
     <div className="flex flex-col gap-6">
@@ -362,8 +416,10 @@ export function LabelEditorPage() {
         <p role="status" className="text-muted">
           {t("app.loading")}
         </p>
-      ) : (
+      ) : canEdit ? (
         <Editor key={annotation.data.id} annotation={annotation.data} />
+      ) : (
+        <LabelView annotation={annotation.data} />
       )}
     </div>
   );

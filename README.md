@@ -18,7 +18,7 @@ one of four answers:
 - **Matches a studied preparation**
 - **Partly matches**
 - **Cannot say whether the evidence applies**
-- **Not yet covered**: the herb isn't in our reference table yet
+- **Not yet covered**
 
 It also lists what the label leaves out, with a question to ask for each, and links every claim to
 its source. It never judges whether a product is harmless or right for someone, and it never

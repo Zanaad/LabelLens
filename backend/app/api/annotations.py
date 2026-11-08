@@ -1,6 +1,6 @@
 # Validation labels are the answer key, so only experts build them: photo or pasted text, the
-# correct fields and the expected verdict. Photos are stored exactly as the model sees them, so
-# validation can find their saved reading.
+# correct fields and the expected verdict. Admins, who run validation, can read them. Photos are
+# stored exactly as the model sees them, so validation can find their saved reading.
 
 import hashlib
 import uuid
@@ -31,6 +31,7 @@ from app.services.storage import Storage, get_storage
 router = APIRouter(prefix="/api/annotations", tags=["annotations"])
 
 expert_only = require_roles(Role.expert)
+reader = require_roles(Role.expert, Role.admin)
 
 
 def _out(db: Session, a: Annotation, prefilled: bool = False) -> AnnotationOut:
@@ -107,7 +108,7 @@ def _create(
 
 @router.get("", response_model=list[AnnotationListItem])
 def list_annotations(
-    db: Session = Depends(get_db), _: User = Depends(expert_only)
+    db: Session = Depends(get_db), _: User = Depends(reader)
 ) -> list[AnnotationListItem]:
     rows = db.scalars(select(Annotation).order_by(Annotation.updated_at.desc()))
     return [
@@ -158,7 +159,7 @@ def create_from_text(
 
 @router.get("/{annotation_id}", response_model=AnnotationOut)
 def get_annotation(
-    annotation_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(expert_only)
+    annotation_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(reader)
 ) -> AnnotationOut:
     return _out(db, _get(db, annotation_id))
 
@@ -168,7 +169,7 @@ def annotation_image(
     annotation_id: uuid.UUID,
     db: Session = Depends(get_db),
     storage: Storage = Depends(get_storage),
-    _: User = Depends(expert_only),
+    _: User = Depends(reader),
 ) -> Response:
     a = _get(db, annotation_id)
     if a.label_ref is None or not storage.exists(a.label_ref):
