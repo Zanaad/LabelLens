@@ -27,7 +27,7 @@ treats missing information as good news.
 Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: working prototype.
 The reference data is a set of source-linked draft rows that have not been verified by an expert.
 
-**Live demo:** https://13-60-219-35.sslip.io (hosted on AWS EC2). Pharmacists can register there;
+**Live demo:** https://13-60-219-35.sslip.io (hosted on Amazon Lightsail). Pharmacists can register there;
 expert and admin accounts are by invitation.
 
 ## Features
@@ -54,7 +54,7 @@ expert and admin accounts are by invitation.
 
 ## Installation / Setup
 
-The steps below run LabelLens on your own machine. The live demo above is deployed on AWS EC2 and
+The steps below run LabelLens on your own machine. The live demo above is deployed on Amazon Lightsail and
 served over HTTPS.
 
 Requirements: Docker with Compose v2.
@@ -286,6 +286,6 @@ validation/results/  JSON copies of validation runs (run-validation --out)
 
 Built by the LabelLens team for EthnoHack 2026, Track 4.
 
-- [Zana Ademi](https://github.com/Zanaad) - Team Leader
+- [Zana Ademi](https://github.com/Zanaad) - Team Lead
 - [Yllkë Berisha](https://github.com/yllkaberisha) - Software Developer
 - [Alketa Zekaj](https://github.com/AlketaZekaj) - DevOps Engineer
