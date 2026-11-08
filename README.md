@@ -103,7 +103,8 @@ model), so it can be replayed later and used for validation.
 1. **Read.** The AI copies the label text into fixed fields (plant, plant part, preparation type,
    extract ratio, solvent, marker, dose, other ingredients, batch, expiry). Each field is
    `stated`, `not_stated` or `unreadable`, and carries a confidence and its evidence text. A stated
-   value that does not appear in its evidence is rejected.
+   value that does not appear in its evidence is discarded, and that field is marked unreadable
+   for the pharmacist to fill in.
 2. **Review.** The pharmacist corrects the fields. Corrections are kept in the scan's history.
 3. **Compare.** The rules engine looks the plant name up in the plant names table, then compares
    plant part, preparation type, extract ratio and solvent with every studied preparation of that

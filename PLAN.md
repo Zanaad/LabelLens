@@ -50,9 +50,11 @@ independently verified. The result page labels unchecked reference rows as sampl
 ### AI reading reliability
 
 Groq strict-schema failures retry once using JSON-object output, then validate the same field
-schema locally. Placeholder strings presented as stated label values are rejected, and so is a
+schema locally. Placeholder strings presented as stated label values are discarded, and so is a
 stated value that does not appear in its quoted evidence (ignoring case, spacing and
-punctuation). Connection failures retry once and return the provider-unavailable message if they
+punctuation). Only the failing field is dropped and marked unreadable; the rest of the reading is
+kept (8 Nov: rejecting the whole reading for one bad field left most real labels with no fields at
+all). Connection failures retry once and return the provider-unavailable message if they
 persist. Successful Groq readings are reused for an identical image and prompt/model. Live cache
 files are excluded from Git.
 

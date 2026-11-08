@@ -160,13 +160,18 @@ def test_groq_reports_missing_key_quota_and_bad_output(tmp_path: Path, monkeypat
     with pytest.raises(ExtractionError, match="provider_misconfigured"):
         GroqProvider("qwen/qwen3.8-27b", "", tmp_path).extract(image=None, text=LABEL)
 
+    calls = []
+
     def rejected(request, timeout):
+        calls.append(request)
         raise HTTPError(request.full_url, 429, "quota", {}, None)
 
     monkeypatch.setattr(providers, "urlopen", rejected)
+    monkeypatch.setattr(providers.time, "sleep", lambda seconds: None)
     provider = GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
     with pytest.raises(ExtractionError, match="provider_unavailable"):
         provider.extract(image=None, text=LABEL)
+    assert len(calls) == 2  # one retry after the wait
     monkeypatch.setattr(providers, "urlopen", lambda request, timeout: BytesIO(b"{}"))
     with pytest.raises(ExtractionError, match="extraction_failed"):
         provider.extract(image=None, text=LABEL)
@@ -218,11 +223,24 @@ def test_groq_retries_disconnect_then_reports_unavailable(tmp_path: Path, monkey
     assert all(json.loads(call.data)["response_format"]["type"] == "json_schema" for call in calls)
 
 
-def test_groq_rejects_placeholder_as_stated_value(tmp_path: Path, monkeypatch):
+def test_groq_drops_a_bad_field_but_keeps_the_reading(tmp_path: Path, monkeypatch):
     from app.extraction import providers
 
     output = extraction()
     output["plant"] = {"value": "none", "status": "stated", "confidence": 0.9, "evidence": "none"}
+    output["solvent"] = {"value": None, "status": "unreadable", "confidence": 0.5, "evidence": "x"}
+    output["plant_part"] = {
+        "value": "herb",
+        "status": "stated",
+        "confidence": 0.9,
+        "evidence": "herb extract",
+    }
+    output["dose"] = {  # read from the label but given the wrong status
+        "value": "300 mg",
+        "status": "not_stated",
+        "confidence": 0.9,
+        "evidence": "300 mg per capsule",
+    }
     calls = []
 
     def reply(request, timeout):
@@ -232,11 +250,16 @@ def test_groq_rejects_placeholder_as_stated_value(tmp_path: Path, monkeypatch):
         )
 
     monkeypatch.setattr(providers, "urlopen", reply)
-    with pytest.raises(ExtractionError, match="extraction_failed"):
-        GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path).extract(
-            image=None, text=LABEL
-        )
-    assert len(calls) == 2
+    fields = (
+        GroqProvider("qwen/qwen3.8-27b", secrets.token_urlsafe(24), tmp_path)
+        .extract(image=None, text=LABEL)
+        .fields
+    )
+    assert len(calls) == 1
+    assert fields.plant.status == "unreadable" and fields.plant.value is None  # placeholder dropped
+    assert fields.solvent.status == "unreadable" and fields.solvent.evidence is None
+    assert fields.plant_part.value == "herb"  # the good fields are kept
+    assert fields.dose.status == "stated" and fields.dose.value == "300 mg"
 
 
 def test_text_scan_flow_with_corrections(client: TestClient, db: Session, setup):

@@ -1,7 +1,8 @@
 import re
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 # Order matches the review screen.
 FIELD_KEYS = (
@@ -80,3 +81,34 @@ class LabelExtraction(BaseModel):
     other_ingredients: ExtractedField
     batch: ExtractedField
     expiry: ExtractedField
+
+    @model_validator(mode="before")
+    @classmethod
+    def keep_valid_fields(cls, data: Any) -> Any:
+        # One field that breaks a rule must not discard the whole reading: it becomes unreadable
+        # (no value), so the reviewer fills it in from the label. Bad values are never kept.
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        for key in FIELD_KEYS:
+            field = data.get(key)
+            if _valid(field):
+                continue
+            if isinstance(field, dict) and field.get("status") in ("not_stated", "unreadable"):
+                # A value quoted from the label under the wrong status is still printed text.
+                fixed = {**field, "status": "stated"}
+                if not _valid(fixed):
+                    fixed = {**field, "value": None, "evidence": None}  # drop stray quoted text
+                if _valid(fixed):
+                    data[key] = fixed
+                    continue
+            data[key] = {"value": None, "status": "unreadable", "confidence": 0.0, "evidence": None}
+        return data
+
+
+def _valid(field: Any) -> bool:
+    try:
+        ExtractedField.model_validate(field)
+    except ValidationError:
+        return False
+    return True

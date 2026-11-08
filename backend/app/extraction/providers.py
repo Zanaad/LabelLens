@@ -230,6 +230,9 @@ class GroqProvider:
                 if attempt == 0 and exc.code == 400 and b"json_validate_failed" in exc.read():
                     request = self._relaxed_request(request, body)
                     continue
+                if attempt == 0 and exc.code in BUSY_CODES:
+                    time.sleep(_retry_wait(exc))
+                    continue
                 raise ExtractionError("provider_unavailable") from None
             except OSError as exc:
                 logger.warning("Groq extraction connection error: %s", type(exc).__name__)
@@ -269,6 +272,17 @@ class GroqProvider:
         (self.cache_dir / f"{key}.json").write_text(
             json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8"
         )
+
+
+BUSY_CODES = (429, 500, 502, 503, 504)  # rate limit or Groq overloaded: worth one more try
+
+
+def _retry_wait(exc: HTTPError) -> float:
+    # Groq says how long to wait on a rate limit; cap it so the upload doesn't hang.
+    try:
+        return min(float(exc.headers.get("retry-after", 3)), 10.0)
+    except (AttributeError, TypeError, ValueError):
+        return 3.0
 
 
 def get_extraction_provider() -> ExtractionProvider:

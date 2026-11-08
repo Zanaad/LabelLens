@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
-from app.api.scans import upload_limit
+from app.api.scans import EXTRACTION_ERROR_STATUS, upload_limit
 from app.api.schemas import (
     AnnotationIn,
     AnnotationListItem,
@@ -87,8 +87,11 @@ def _create(
             f = getattr(read, k)
             fields[k] = f.value if f.status == FieldStatus.stated else None
         title, prefilled = read.product_name or "", True
-    except ExtractionError:
-        pass  # not readable now (e.g. demo mode): the annotator types the fields in
+    except ExtractionError as e:
+        # Demo mode has no reading: the annotator types the fields in. Any other failure is shown
+        # like a scan's and nothing is saved, so the same photo can simply be uploaded again.
+        if e.code != "not_in_cache":
+            raise HTTPException(EXTRACTION_ERROR_STATUS[e.code], detail=e.code) from None
     a = Annotation(
         id=uuid.uuid4(),
         title=(title or fallback_title)[:200],
