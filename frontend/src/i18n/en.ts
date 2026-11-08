@@ -314,6 +314,7 @@ export const en = {
   "annot.intro":
     "Labels with known correct answers: the answer key LabelLens is measured against. Add real product photos, copy every field exactly as printed and set the verdict a correct reading should get. An admin runs validation over the labels marked Final.",
   "annot.expectedBy": "Set by {name} on {date}.",
+  "annot.readOnly": "Read only. Experts add the labels, check them and mark them Final; a validation run uses the Final ones.",
   "annot.add": "Add a label",
   "annot.upload": "Upload photo",
   "annot.pasteLabel": "Or paste the label text",

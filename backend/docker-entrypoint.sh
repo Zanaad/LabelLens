@@ -4,4 +4,5 @@ alembic upgrade head
 # Seeding never blocks startup; problems are printed to the log.
 python -m app.cli seed-admin || true
 python -m app.cli seed-reference /data/reference/ema-draft.json || true
+python -m app.cli seed-labels /data/labels/validation-labels.json || true
 exec "$@"

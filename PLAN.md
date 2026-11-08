@@ -62,10 +62,14 @@ files are excluded from Git.
 - An expert explicitly confirms every field against the image before a Final label enters the
   standard report. The checker and time are stored. Field-only checks can be Final without an
   expected verdict; verdict accuracy remains empty until a reviewed expected verdict exists.
-- Ten real product-label images are local Draft or In review annotations with source notes. Two have saved
-  Groq readings, and seven have limited assistant-entered first-pass fields. None is independently
-  checked, so the standard report has zero labels and no accuracy claim. Third-party image
-  reuse rights need checking before distribution.
+- **Starting label set (8 Nov):** 11 US supplement labels from the NIH DSLD (ginkgo, St John's
+  wort, chamomile), described in `data/labels/validation-labels.json` with their sources. Fields
+  were copied with AI assistance, and the expected verdicts were suggested from the reference
+  table. `seed-labels` adds them on start as **In review** (never overwriting a label already
+  stored), so a team member checks each against its image before marking it Final. The images
+  are manufacturers' label designs, so they stay out of Git; on the server they are copied into
+  `data/labels/` by hand. `fetch-readings` pauses 20 seconds between Groq calls for the free tier.
+  None of these labels is checked by an independent expert, and quoted numbers must say so.
 
 ### What remains
 
@@ -132,7 +136,7 @@ How each role should behave if LabelLens went to production, against what the ap
 | Change a user's role | Yes | No; only active or inactive | ❌ |
 | Invite experts and admins | Yes, by email | Yes | ✅ |
 | Reference table | Read-only | Read-only | ✅ |
-| Start validation runs over the experts' Final labels | Yes, without editing the labels | Yes; admins can't open the labels | ✅ |
+| Start validation runs over the experts' Final labels | Yes, without editing the labels | Yes; admins read the labels but can't change them | ✅ |
 | Usage statistics (scans per day, verdict mix, review backlog) | Yes | No screen | ❌ |
 | View the audit log | Yes | Logged, but no screen | ❌ |
 | Never see pharmacists' scans or patient data | Correct | Correct | ✅ |
@@ -201,7 +205,8 @@ model name; cached mode needs it to find them.
     check was dropped: checking means comparing every value with the monograph, which is the same
     work as typing it. The "suggest a correction" step was dropped for the same reason.
   - Validation labels: only experts add them, fill and check the fields, set the expected verdict
-    and mark them Final. Admins can't open them; they start runs. The team running the system
+    and mark them Final. Admins read them (to see what a run will cover) and start runs, but
+    can't change them; run results already show each label's expected answer. The team running the system
     doesn't write its own answer key. Who set the expected verdict and when are stored
     (migration 0008).
   - Deleting a label is allowed: stored runs keep their own copy of each label's result, so past

@@ -59,6 +59,8 @@ export function App() {
         <Route element={<RequireRole roles={["expert"]} />}>
           <Route path="/review" element={<ReviewQueuePage />} />
           <Route path="/review/:id" element={<ReviewDetailPage />} />
+        </Route>
+        <Route element={<RequireRole roles={["expert", "admin"]} />}>
           <Route path="/validation/labels" element={<LabelsPage />} />
           <Route path="/validation/labels/:id" element={<LabelEditorPage />} />
         </Route>

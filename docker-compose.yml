@@ -46,6 +46,7 @@ services:
       - uploads:/data/storage
       - ./data/extraction_cache:/data/extraction_cache
       - ./data/reference:/data/reference:ro
+      - ./data/labels:/data/labels:ro
       - ./validation/results:/validation/results
     depends_on:
       db:

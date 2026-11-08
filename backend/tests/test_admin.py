@@ -166,7 +166,6 @@ def test_validation_run(
     client.app.dependency_overrides[get_storage] = lambda: storage  # type: ignore[attr-defined]
     as_user(client, db, "admin@example.org", Role.admin)
     assert client.post("/api/annotations/text", json={"text": LABEL}).status_code == 403
-    assert client.get("/api/annotations").status_code == 403  # experts own the answer key
 
     as_user(client, db, "e@example.org", Role.expert)
     created = client.post("/api/annotations/text", json={"text": LABEL}).json()
@@ -198,6 +197,9 @@ def test_validation_run(
 
     client.post("/api/auth/logout")
     login(client, "admin@example.org")
+    assert client.get(url).json()["expected_verdict"] == "partly_matches"  # admins read labels
+    assert client.put(url, json=body | {"fields_checked": True}).status_code == 403  # not edit
+    assert client.delete(url).status_code == 403
     m = client.post("/api/validation/runs", json={}).json()["metrics"]
     assert m["dataset"]["labels"] == 1 and m["dataset"]["read"] == 1
     assert m["fields"]["plant"]["correct"] == 1  # case does not matter
