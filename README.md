@@ -13,11 +13,12 @@ different preparation, so the evidence may not apply to it.
 
 LabelLens helps pharmacists check this. A pharmacist photographs a herbal product's label;
 LabelLens reads it, compares it with the preparations studied in EU herbal monographs, and returns
-one of three answers:
+one of four answers:
 
 - **Matches a studied preparation**
 - **Partly matches**
 - **Cannot say whether the evidence applies**
+- **Not yet covered**: the herb isn't in our reference table yet
 
 It also lists what the label leaves out, with a question to ask for each, and links every claim to
 its source. It never judges whether a product is harmless or right for someone, and it never
@@ -117,6 +118,14 @@ model), so it can be replayed later and used for validation.
    | Cannot say whether the evidence applies | two or more preparations are still possible, or the label contradicts them all |
    | Not yet covered | the plant is not in the reference table |
 
+   Two more labels appear on expert and admin screens only:
+
+   - **Differs from every studied preparation:** the label contradicts all of them (for example a
+     1:2 extract where the studied one is 35–67:1). Pharmacists see this as "Cannot say", with the
+     reason.
+   - **Not set:** a validation label whose expected verdict no expert has chosen yet. It is not a
+     verdict.
+
    Every check is stored with the rules version, so old results stay as they were.
 
 The AI reads the label; it never chooses the verdict.
@@ -196,6 +205,9 @@ Validation measures how often LabelLens is right on labels whose correct answers
 1. **Add labels:** as an expert, open **Validation → Validation labels**, upload a label photo or
    paste its text, check every field against the label, set the expected verdict and mark the
    label **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
+   Our starting set of 11 labels is described in `data/labels/validation-labels.json`. If their
+   images are in `data/labels/` (see `DATA_SOURCES.md`), they are added on start as **In review**;
+   an expert checks each one against its image and marks it Final.
 2. **Run:** as an admin, open **Validation** and click **Run validation**. A run replays saved
    readings only (no API calls, no cost) and is stored, with a copy of the exact answers it was
    scored against.
@@ -205,8 +217,9 @@ Validation measures how often LabelLens is right on labels whose correct answers
    numbers come with a 95% confidence range.
 
 Labels without a saved reading are left out of the field and end-to-end numbers.
-`python -m app.cli fetch-readings` reads them (and the plain-prompt baseline) with Groq; the
-readings are saved for later runs. Accuracy figures are only quoted from a stored run over Final
+`docker compose exec backend python -m app.cli fetch-readings` reads them (and the plain-prompt
+baseline) with Groq, pausing 20 seconds between calls for the free tier; the readings are saved
+for later runs. Accuracy figures are only quoted from a stored run over Final
 labels.
 
 ## Data sources and licences

@@ -26,6 +26,11 @@ validation/results/*
 # Live label readings (existing demo fixtures remain tracked)
 data/extraction_cache/*.json
 
+# Validation label images: manufacturers' label designs, kept local (sources in validation-labels.json)
+data/labels/*.png
+data/labels/*.jpg
+data/labels/*.jpeg
+
 # Local-only planning, design and docs
 docs/
 data/README.md
