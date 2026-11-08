@@ -131,6 +131,7 @@ class ScanListItem(BaseModel):
     verdict: VerdictCode | None  # latest check; None if not checked yet
     missing: int | None
     review: Rating | None = None  # most notable reviewer rating of the latest check
+    review_verdict: VerdictCode | None = None  # the verdict that reviewer suggests, if any
 
 
 class CorrectionOut(BaseModel):
@@ -379,10 +380,6 @@ class ReferenceOut(BaseModel):
     plant_names: list[PlantNameOut]
 
 
-class CheckIn(BaseModel):
-    verified: bool
-
-
 class ReferenceChange(BaseModel):
     action: str
     by: str | None
@@ -420,6 +417,8 @@ class AnnotationOut(AnnotationIn):
     annotator: str | None
     checked_by: str | None
     checked_at: datetime | None
+    expected_by: str | None
+    expected_at: datetime | None
     prefilled: bool = False  # fields came from the label reader and still need checking
 
 

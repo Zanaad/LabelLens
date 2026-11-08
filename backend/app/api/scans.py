@@ -410,7 +410,9 @@ def list_scans(
     for s in scans:
         f = fields.get(s.id, {})
         v = verdicts.get(s.id)
-        given = {o.rating for o in reviews.get(v[0], [])} if v else set()
+        opinions = reviews.get(v[0], []) if v else []
+        # The most notable rating; a disagreement carries the verdict the reviewer suggests.
+        top = min(opinions, key=lambda o: REVIEW_PRIORITY.index(o.rating), default=None)
         items.append(
             ScanListItem(
                 id=s.id,
@@ -420,7 +422,8 @@ def list_scans(
                 plant=(f.get("plant") or {}).get("value"),
                 verdict=v[1] if v else None,
                 missing=_missing_count(v[2]) if v else None,
-                review=next((r for r in REVIEW_PRIORITY if r in given), None),
+                review=top.rating if top else None,
+                review_verdict=top.correct_verdict if top else None,
             )
         )
     return items

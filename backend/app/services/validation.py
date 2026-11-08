@@ -1,4 +1,4 @@
-# Validation: how often LabelLens is right on labels with known answers (Admin -> annotations).
+# Validation: how often LabelLens is right on labels with known answers (built by experts).
 # Uses saved readings only (never calls the API), so a run costs nothing and can be repeated.
 # Every number in the pitch must come from a stored run.
 

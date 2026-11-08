@@ -382,7 +382,7 @@ describe("expert and admin", () => {
     expect(sentBody(fetchMock, "/api/reviews/v1")).toEqual({ rating: "disagree", correct_verdict: "matches", reason: null });
   });
 
-  it("lets only admins edit the reference table", async () => {
+  it("lets only experts edit and check the reference table", async () => {
     const reference = {
       preparations: [
         {
@@ -405,17 +405,19 @@ describe("expert and admin", () => {
       ],
       plant_names: [],
     };
+    const user = userEvent.setup();
     mockApi(expert, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
     renderApp("/reference");
     expect(await screen.findByText("Matricaria recutita L.")).toBeInTheDocument();
     expect(screen.getByText("Sample, not checked")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit Herbal tea" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark Herbal tea as checked against the source" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit Herbal tea" }));
+    expect(screen.getByRole("checkbox", { name: /Checked against the source/ })).not.toBeChecked();
     cleanup();
     mockApi(admin, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
     renderApp("/reference");
-    expect(await screen.findByRole("button", { name: "Edit Herbal tea" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /as checked/ })).not.toBeInTheDocument(); // only experts check
+    expect(await screen.findByText("Matricaria recutita L.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit Herbal tea" })).not.toBeInTheDocument(); // read only
+    expect(screen.queryByRole("button", { name: "Add preparation" })).not.toBeInTheDocument();
   });
 
   it("shows validation numbers with their uncertainty and a table view", async () => {

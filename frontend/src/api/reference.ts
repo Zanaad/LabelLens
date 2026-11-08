@@ -46,17 +46,7 @@ export function usePreparationHistory(id: string | null) {
   });
 }
 
-// Experts only: mark a row as checked against its source, or undo that.
-export function useCheckReference() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ table, id, verified }: { table: "preparations" | "plant-names"; id: string; verified: boolean }) =>
-      api<unknown>(`/api/reference/${table}/${id}/check`, { method: "PUT", json: { verified } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: referenceKey }),
-  });
-}
-
-// One hook for create/update/delete of both tables; the list is refetched after each change.
+// Experts only: one hook for create/update/delete of both tables; the list is refetched after.
 export function useSaveReference() {
   const qc = useQueryClient();
   return useMutation({

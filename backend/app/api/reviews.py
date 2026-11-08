@@ -1,6 +1,8 @@
-# Expert review queue: reviewers rate the latest verdict of each checked scan. Reviewers never
-# see who scanned the product (onboarding promises pharmacists this).
+# Expert review queue: results a pharmacist asked about, plus a stable random sample of the rest,
+# so experts are not sent every scan. Reviewers never see who scanned the product (onboarding
+# promises pharmacists this).
 
+import hashlib
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -10,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.api.scans import verdict_out
 from app.api.schemas import FieldOut, RatingIn, RatingOut, ReviewDetail, ReviewItem
+from app.config import get_settings
 from app.db import get_db
 from app.extraction.schema import FIELD_KEYS
 from app.models import ExpertRating, Extraction, Role, Scan, User, Verdict
@@ -26,6 +29,11 @@ def _verdict(db: Session, verdict_id: uuid.UUID) -> Verdict:
     if verdict is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
     return verdict
+
+
+def in_sample(verdict_id: uuid.UUID, percent: int) -> bool:
+    """Same answer every time for a verdict, so the sample does not change between visits."""
+    return int(hashlib.sha256(verdict_id.bytes).hexdigest()[:8], 16) % 100 < percent
 
 
 def _my_rating(db: Session, verdict_id: uuid.UUID, user: User) -> ExpertRating | None:
@@ -64,6 +72,7 @@ def review_queue(db: Session = Depends(get_db), user: User = Depends(reviewer)) 
         )
         .limit(500)
     ).all()
+    percent = get_settings().review_sample_percent
     return [
         ReviewItem(
             verdict_id=v.id,
@@ -77,6 +86,8 @@ def review_queue(db: Session = Depends(get_db), user: User = Depends(reviewer)) 
             requested=v.review_requested_at is not None,
         )
         for v, fields, rating, n in rows
+        # Asked about, already rated by this expert, or in the random sample.
+        if v.review_requested_at or rating or in_sample(v.id, percent)
     ]
 
 

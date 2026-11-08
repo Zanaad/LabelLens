@@ -31,6 +31,7 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       EXTRACTION_CACHE_DIR: /data/extraction_cache
+      REVIEW_SAMPLE_PERCENT: ${REVIEW_SAMPLE_PERCENT:-10}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_NAME: ${ADMIN_NAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

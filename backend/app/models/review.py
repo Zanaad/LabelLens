@@ -45,6 +45,11 @@ class Annotation(IdMixin, TimestampMixin, Base):
     expected_verdict: Mapped[VerdictCode | None] = mapped_column(
         str_enum(VerdictCode, "expected_verdict_code")
     )
+    # Experts decide the expected verdict; who and when are kept as its basis.
+    expected_verdict_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    expected_verdict_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     status: Mapped[AnnotationStatus] = mapped_column(
         str_enum(AnnotationStatus, "annotation_status"), default=AnnotationStatus.draft
     )

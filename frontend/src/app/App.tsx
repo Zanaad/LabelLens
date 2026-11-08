@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import { AboutPage } from "../pages/AboutPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { AdminPage } from "../pages/AdminPage";
-import { AnnotationEditorPage, AnnotationsPage } from "../pages/AnnotationsPage";
+import { LabelEditorPage, LabelsPage } from "../pages/AnnotationsPage";
 import { ReviewDetailPage, ReviewQueuePage } from "../pages/ExpertReviewPage";
 import { ComparePage } from "../pages/ComparePage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
@@ -59,11 +59,11 @@ export function App() {
         <Route element={<RequireRole roles={["expert"]} />}>
           <Route path="/review" element={<ReviewQueuePage />} />
           <Route path="/review/:id" element={<ReviewDetailPage />} />
+          <Route path="/validation/labels" element={<LabelsPage />} />
+          <Route path="/validation/labels/:id" element={<LabelEditorPage />} />
         </Route>
         <Route element={<RequireRole roles={["admin"]} />}>
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/admin/annotations" element={<AnnotationsPage />} />
-          <Route path="/admin/annotations/:id" element={<AnnotationEditorPage />} />
         </Route>
         <Route path="/reference" element={<ReferencePage />} />
         <Route

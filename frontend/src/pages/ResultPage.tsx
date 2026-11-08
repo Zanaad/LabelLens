@@ -5,6 +5,7 @@ import { useScan, useVerdict, type Scan, type Verdict } from "../api/scans";
 import { AskExpert } from "../components/AskExpert";
 import { ComparisonTable } from "../components/ComparisonTable";
 import {
+  ArrowLeftIcon,
   BookIcon,
   CloseIcon,
   CompareIcon,
@@ -153,10 +154,16 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
             ))}
           </p>
         </div>
-        <ButtonLink to={`/scans/${scan.id}/review`} variant="secondary" className="no-print">
-          <EditIcon size={18} />
-          {t("result.editFields")}
-        </ButtonLink>
+        <div className="no-print flex flex-wrap gap-2">
+          <ButtonLink to="/scans" variant="secondary">
+            <ArrowLeftIcon />
+            {t("result.backToScans")}
+          </ButtonLink>
+          <ButtonLink to={`/scans/${scan.id}/review`} variant="secondary">
+            <EditIcon size={18} />
+            {t("result.editFields")}
+          </ButtonLink>
+        </div>
       </section>
 
       <section aria-labelledby="verdict-title" aria-live="polite" className="flex flex-col gap-3">

@@ -14,7 +14,7 @@ the herbal preparations studied in EU monographs, and gives one of three answers
 It only checks what is printed on the label, not what is inside the product. It never says a
 product is "safe", never gives dosing advice, and never treats missing information as good news.
 
-## Where we are (7 Nov 2026)
+## Where we are (8 Nov 2026)
 
 | Step | What it includes | Status |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ product is "safe", never gives dosing advice, and never treats missing informati
 | 3 | History, patient link, and printable one-page summary | **Done** |
 | 4 | Expert review queue, admin tools, validation workflow, and email password reset | **Done** |
 | 5 | Source-linked EMA draft rows and live label reading | **Done for the local prototype** |
-| 6 | Real-label validation, demo polish, and deployment | **In progress** |
+| 6 | Real-label validation, demo polish, and deployment | **Deployed** (EC2, 8 Nov); real-label validation still open |
 
 Step 5 is complete as an implementation milestone: the local app can read new photos and pasted
 text through Groq, let a pharmacist correct fields, and compare them with source-linked EMA draft
@@ -59,7 +59,7 @@ files are excluded from Git.
 ### Hackathon validation workflow
 
 - The validation run now selects the active Groq model, so it can find saved Groq readings.
-- An admin explicitly confirms every field against the image before a Final label enters the
+- An expert explicitly confirms every field against the image before a Final label enters the
   standard report. The checker and time are stored. Field-only checks can be Final without an
   expected verdict; verdict accuracy remains empty until a reviewed expected verdict exists.
 - Ten real product-label images are local Draft or In review annotations with source notes. Two have saved
@@ -78,20 +78,22 @@ files are excluded from Git.
    chamomile packages: the Ginkgo result could not resolve the missing DER/solvent, and one
    chamomile reading mistook `25g` for a preparation. A real image and a successful API call are
    not accuracy measurements. Keep fictional examples separate from this test set.
-3. **Run validation with honest ground truth.** A team member can transcribe clearly printed
-   fields and have a second member cross-check them. For verdict accuracy, record who assigned
+3. **Run validation with honest ground truth.** Labels are built in the app by expert accounts;
+   for the hackathon, team members with expert accounts transcribe clearly printed fields and a
+   second member cross-checks them. For verdict accuracy, record who assigned
    expected answers and their basis; report counts and uncertainty. If there are too few checked
    labels, show examples and limitations instead of an accuracy percentage. Expert review is an
    optional later improvement, not a dependency for the prototype.
 4. **Improve the real-photo path.** Test small-print labels and measure failures after the retry
    handling and the new evidence check (done 7 Nov). A successful API call alone does not
    establish reading accuracy.
-5. **Demo and deployment.** Deployment (HTTPS, secure production configuration, backups, smoke
-   test) is handled by a teammate; the current Compose setup is for local use. Still ours:
-   decide whether to keep fictional example labels clearly marked in the app, and record the EMA
-   reuse terms before publishing reference data in a public repository.
-6. **Wording reviews.** The About and Settings text (`TODO(team)`) and the patient wording
-   (`TODO(expert)`, ideally a pharmacist) still need a read-through.
+5. **Demo and deployment.** Deployed by Alketa on AWS EC2 over HTTPS:
+   https://13-60-219-35.sslip.io (8 Nov). Backups are not confirmed yet. Still ours: decide
+   whether to keep fictional example labels clearly marked in the app, and record the EMA reuse
+   terms before publishing reference data in a public repository.
+6. **Wording reviews.** The patient wording (`TODO(expert)` in `PatientPage.tsx`, ideally a
+   pharmacist) and how "differs" is shown to pharmacists (`TODO(expert)` in `verdict.tsx`) still
+   need a decision.
 
 ### Roles: production target vs today (8 Nov)
 
@@ -116,11 +118,10 @@ How each role should behave if LabelLens went to production, against what the ap
 | Capability | In production | Today | Status |
 | --- | --- | --- | --- |
 | Account | Invitation-only | Invitation-only, link emailed | ✅ |
-| Review queue | Escalated cases first, plus a random sample, not every scan | Escalated cases first, then every other checked scan, newest first | ⚠️ |
+| Review queue | Escalated cases first, plus a random sample, not every scan | Escalated cases first, then a stable random sample of the rest (`REVIEW_SAMPLE_PERCENT`, default 10) | ✅ |
 | Rate without seeing the pharmacist or other reviewers | Yes | Yes | ✅ |
-| Mark reference rows as checked, without editing content | Yes | Yes | ✅ |
-| Suggest a correction to a reference row | Yes | No; must tell an admin outside the app | ❌ |
-| Set the expected verdict on validation labels | Yes, it is expert judgement | No, the admin sets it | ❌ |
+| Add, edit, check and delete reference rows | Yes, every value comes from a monograph | Yes, experts only; every change is kept in the row's history | ✅ |
+| Build validation labels: photo, fields, expected verdict, Final | Yes, they are the answer key | Yes, experts only, on the Validation page's labels tab; who set the expected verdict and when are stored | ✅ |
 | See validation results | Read-only | Read-only | ✅ |
 
 **Admin** (runs the system)
@@ -130,8 +131,8 @@ How each role should behave if LabelLens went to production, against what the ap
 | Manage users: deactivate, reset password | Yes | Yes | ✅ |
 | Change a user's role | Yes | No; only active or inactive | ❌ |
 | Invite experts and admins | Yes, by email | Yes | ✅ |
-| Transcribe reference rows, without checking them | Yes | Yes | ✅ |
-| Validation labels (fields) and runs | Yes | Yes | ✅ |
+| Reference table | Read-only | Read-only | ✅ |
+| Start validation runs over the experts' Final labels | Yes, without editing the labels | Yes; admins can't open the labels | ✅ |
 | Usage statistics (scans per day, verdict mix, review backlog) | Yes | No screen | ❌ |
 | View the audit log | Yes | Logged, but no screen | ❌ |
 | Never see pharmacists' scans or patient data | Correct | Correct | ✅ |
@@ -144,7 +145,7 @@ How each role should behave if LabelLens went to production, against what the ap
 | Two-step sign-in (MFA) for admins and experts | Yes | No | ❌ |
 | Data retention: delete old scans and photos automatically | A set policy | Manual deletion only | ⚠️ |
 | Rate limits | Shared across restarts and servers | In memory, reset on restart | ⚠️ |
-| HTTPS, backups, deployment | Yes | Handled by a teammate | ⚠️ |
+| HTTPS, backups, deployment | Yes | Deployed on AWS EC2 over HTTPS; backups not confirmed | ⚠️ |
 
 ### Possible later features
 
@@ -183,6 +184,28 @@ model name; cached mode needs it to find them.
 - **Publication:** check EMA reuse terms and the active database content before public release.
 
 ## Decisions made
+
+### Expert role completed (8 Nov)
+
+- **Sampled review queue.** Experts see results a pharmacist asked about, results they already
+  rated, and a stable random share of the rest (`REVIEW_SAMPLE_PERCENT`, default 10; chosen from a
+  hash of the verdict id, so it doesn't change between visits). For a demo with few scans, set it
+  to 100. Note for the agreement figure: asked-about results are harder than average, so they bias
+  it; a later version could report sampled and asked-about ratings separately.
+- **Experts own the reference table and the validation labels; admins run the system** (agreed).
+  Rule of thumb: if doing it right needs a monograph or judgement about a label, it's the
+  expert's; if it's about accounts or running the system, it's the admin's. Each piece of work
+  has one owner, with no hand-offs between roles.
+  - Reference table: only experts add, edit, check ("Checked against the source" in the edit
+    form) and delete rows. Admins and pharmacists read it. Having admins type rows for experts to
+    check was dropped: checking means comparing every value with the monograph, which is the same
+    work as typing it. The "suggest a correction" step was dropped for the same reason.
+  - Validation labels: only experts add them, fill and check the fields, set the expected verdict
+    and mark them Final. Admins can't open them; they start runs. The team running the system
+    doesn't write its own answer key. Who set the expected verdict and when are stored
+    (migration 0008).
+  - Deleting a label is allowed: stored runs keep their own copy of each label's result, so past
+    numbers don't change.
 
 ### Email verification and "Ask an expert" (8 Nov)
 
@@ -261,12 +284,10 @@ model name; cached mode needs it to find them.
   - Admins can also send a reset email from the user list.
   - Email is sent over SMTP with settings in `.env`; no new library. We use Gmail with an app
     password; with no `SMTP_HOST` set, no email is sent.
-- **Roles split (8 Nov, agreed):** admins run the system (users, invitations, editing the
-  reference table, validation labels and runs, statistics); only experts judge (the review queue,
-  and marking reference rows as checked). An admin's change to a checked row's content unchecks
-  it, because the old check no longer covers the new values. Ratings admins gave before the split
-  stay stored. Validation expected verdicts stay with the admin for now; ideally an expert decides
-  them.
+- **Roles split (8 Nov, agreed):** admins run the system (users, invitations, validation runs,
+  statistics); experts judge (the review queue) and own the content (the reference table and the
+  validation labels; see "Expert role completed"). Ratings admins gave before the split stay
+  stored.
 - **Expert review queue.** Experts see the newest verdict of each checked scan,
   without the pharmacist's name or email (as onboarding promises). They choose Agree, Disagree
   (then the right verdict) or Unsure, with an optional reason. A review shows up in the
@@ -281,12 +302,12 @@ model name; cached mode needs it to find them.
   so the mentor can see it. Pharmacists and patients still see "Cannot say".
 - **Admin users page:** deactivate or reactivate accounts (it takes effect immediately), send a
   reset email, and see the invitations. Admins can't deactivate themselves.
-- **Reference table page** for everyone; admins add, edit and delete rows, experts mark rows as
-  checked or not checked, and every change to a studied preparation is kept in a history (who,
-  when, which fields, including checks). Rows not yet checked still need a `TODO(expert)` note.
-- **Validation labels (admin):**
+- **Reference table page** for everyone; experts add, edit, check and delete rows, and every
+  change to a studied preparation is kept in a history (who, when, which fields, including
+  checks). Rows not yet checked still need a `TODO(expert)` note.
+- **Validation labels (expert):**
   - Upload a photo or paste label text. The app pre-fills the fields from its own reading when
-    there is one; the annotator corrects every field and sets the expected verdict.
+    there is one; the expert corrects every field and sets the expected verdict.
   - The expected verdict should come from the expert, not from what LabelLens says, so the editor
     does not show the app's verdict.
   - Only labels marked Final count. The same photo can't be added twice.
