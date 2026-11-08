@@ -1,17 +1,14 @@
 # Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), seed-admin (runs at
 # container start), seed-reference (same, loads the reference file if the table is empty),
-# seed-labels (same, adds validation labels whose image isn't in the database yet),
 # import-reference (upsert from JSON), run-validation (same as Validation -> Run) and
 # fetch-readings (live API).
 
 import argparse
 import getpass
-import hashlib
 import json
 import os
 import sys
 import time
-import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -19,7 +16,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import LabelFile, ReferenceFile
+from app.api.schemas import ReferenceFile
 from app.config import get_settings
 from app.db import get_engine
 from app.extraction.providers import (
@@ -29,18 +26,8 @@ from app.extraction.providers import (
     cache_key,
     read_cached,
 )
-from app.extraction.schema import FIELD_KEYS
-from app.models import (
-    Annotation,
-    AnnotationStatus,
-    PlantName,
-    ReferenceHistory,
-    ReferencePreparation,
-    Role,
-    User,
-)
+from app.models import Annotation, PlantName, ReferenceHistory, ReferencePreparation, Role, User
 from app.services.audit import audit
-from app.services.images import ImageError, clean_upload
 from app.services.security import hash_password
 from app.services.storage import get_storage
 from app.services.validation import run_validation, store_run
@@ -148,52 +135,6 @@ def seed_reference(path: Path) -> int:
     return 0
 
 
-def seed_labels(path: Path) -> int:
-    """Start: adds labels whose image isn't stored yet, In review, so a person checks each one
-    before it counts. Never changes a label that already exists."""
-    try:
-        data = LabelFile.model_validate_json(path.read_bytes())
-    except FileNotFoundError:
-        return 0  # no label set on this server
-    except (OSError, ValidationError) as e:
-        print(f"Could not seed validation labels from {path}:\n{e}")
-        return 1
-    storage, max_bytes = get_storage(), get_settings().max_upload_mb * 1024 * 1024
-    added = 0
-    with Session(get_engine()) as db:
-        stored = set(db.scalars(select(Annotation.image_sha256)))
-        for label in data.labels:
-            if set(label.fields) - set(FIELD_KEYS):
-                print(f"{label.file}: unknown field")
-                continue
-            try:
-                image = clean_upload((path.parent / label.file).read_bytes(), max_bytes)
-            except (OSError, ImageError):
-                print(f"{label.file}: image missing or unreadable")
-                continue
-            sha = hashlib.sha256(image.model_data).hexdigest()  # same key as an upload in the app
-            if sha in stored:
-                continue
-            a = Annotation(
-                id=uuid.uuid4(),
-                title=label.title,
-                image_sha256=sha,
-                fields_json={k: label.fields.get(k) for k in FIELD_KEYS},
-                expected_verdict=label.expected_verdict,
-                notes=label.notes,
-                status=AnnotationStatus.in_review,
-            )
-            a.label_ref = storage.save(f"labels/{a.id}.jpg", image.model_data)
-            db.add(a)
-            audit(db, "annotation.seed", entity_type="annotation", entity_id=a.id)
-            stored.add(sha)
-            added += 1
-        db.commit()
-    if added:
-        print(f"Seeded {added} validation labels (In review).")
-    return 0
-
-
 def validate(include_drafts: bool, out: Path | None) -> int:
     s = get_settings()
     with Session(get_engine()) as db:
@@ -269,14 +210,11 @@ def main(argv: list[str] | None = None) -> int:
     f.add_argument("--pause", type=float, default=20, help="seconds between live API calls")
     sub.add_parser("seed-admin")
     sub.add_parser("seed-reference").add_argument("path", type=Path)
-    sub.add_parser("seed-labels").add_argument("path", type=Path)
     args = parser.parse_args(argv)
     if args.cmd == "run-validation":
         return validate(args.include_drafts, args.out)
     if args.cmd == "fetch-readings":
         return fetch_readings(args.pause)
-    if args.cmd == "seed-labels":
-        return seed_labels(args.path)
     if args.cmd == "seed-admin":
         return seed_admin()
     if args.cmd == "seed-reference":

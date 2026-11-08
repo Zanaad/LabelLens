@@ -62,14 +62,6 @@ files are excluded from Git.
 - An expert explicitly confirms every field against the image before a Final label enters the
   standard report. The checker and time are stored. Field-only checks can be Final without an
   expected verdict; verdict accuracy remains empty until a reviewed expected verdict exists.
-- **Starting label set (8 Nov):** 11 US supplement labels from the NIH DSLD (ginkgo, St John's
-  wort, chamomile), described in `data/labels/validation-labels.json` with their sources. Fields
-  were copied with AI assistance, and the expected verdicts were suggested from the reference
-  table. `seed-labels` adds them on start as **In review** (never overwriting a label already
-  stored), so a team member checks each against its image before marking it Final. The images
-  are manufacturers' label designs, so they stay out of Git; on the server they are copied into
-  `data/labels/` by hand. `fetch-readings` pauses 20 seconds between Groq calls for the free tier.
-  None of these labels is checked by an independent expert, and quoted numbers must say so.
 
 ### What remains
 

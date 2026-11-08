@@ -21,20 +21,10 @@ reference row checked by our pharmacognosy mentor, before results are shown as a
 
 ## Validation labels (Validation → Validation labels)
 
-- **Label images:** 11 US supplement labels (ginkgo, St John's wort, chamomile) from the NIH
-  Office of Dietary Supplements' Dietary Supplement Label Database (DSLD),
-  https://ods.od.nih.gov/Research/Dietary_Supplement_Label_Database.aspx. Each label's DSLD ID
-  and PDF link are in `data/labels/validation-labels.json`; the PDFs were rendered to PNG. They
-  are flat label designs, not phone photos, so real photos may read worse.
-- **Licence:** DSLD is a free public US government resource, but the label designs belong to the
-  manufacturers. The images are used for validation only and are not in the repository; download
-  them from the DSLD links to reproduce the set.
-- **Correct answers:** fields were copied from each label by the team with AI assistance, and the
-  expected verdicts were suggested from the reference table. They load as In review; a team
-  member checks each label against its image before marking it Final, and only Final labels
-  count. They have not been checked by an independent expert.
-- Labels added later in the app are stored in its upload storage, not in the repository. They
-  must not contain personal data (no prescriptions, receipts or patient names).
+- Label photos are uploaded by experts in the app and stored in its upload storage, not in the
+  repository. Each validation run keeps a copy of the correct answers it was scored against.
+- Record each label's source and licence in its notes. Images must not contain personal data (no
+  prescriptions, receipts or patient names).
 
 ### Local draft validation set (6 Nov 2026)
 

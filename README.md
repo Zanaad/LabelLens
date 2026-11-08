@@ -205,9 +205,6 @@ Validation measures how often LabelLens is right on labels whose correct answers
 1. **Add labels:** as an expert, open **Validation → Validation labels**, upload a label photo or
    paste its text, check every field against the label, set the expected verdict and mark the
    label **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
-   Our starting set of 11 labels is described in `data/labels/validation-labels.json`. If their
-   images are in `data/labels/` (see `DATA_SOURCES.md`), they are added on start as **In review**;
-   an expert checks each one against its image and marks it Final.
 2. **Run:** as an admin, open **Validation** and click **Run validation**. A run replays saved
    readings only (no API calls, no cost) and is stored, with a copy of the exact answers it was
    scored against.

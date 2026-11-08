@@ -400,21 +400,6 @@ class AnnotationIn(BaseModel):
     fields_checked: bool = False
 
 
-class SeedLabel(BaseModel):
-    """One validation label in data/labels/validation-labels.json; the image sits beside it."""
-
-    model_config = ConfigDict(extra="forbid")
-    file: str = Field(pattern=r"^[\w.-]+\.(png|jpe?g)$")  # a file name, never a path
-    title: str = Field(min_length=1, max_length=200)
-    fields: dict[str, str]
-    expected_verdict: VerdictCode | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-
-
-class LabelFile(BaseModel):
-    labels: list[SeedLabel]
-
-
 class AnnotationListItem(BaseModel):
     id: uuid.UUID
     title: str
