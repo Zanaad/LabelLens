@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { Link, useLocation } from "react-router-dom";
 import {
   useInvitations,
   useRevokeInvitation,
@@ -19,30 +18,6 @@ const card = `${panel} p-6`;
 const th = "border-b border-border px-3 py-2.5 text-left font-semibold first:pl-6 last:pr-6";
 const td = "border-b border-border px-3 py-2.5 text-left align-top first:pl-6 last:pr-6";
 const small = "min-h-10 px-3 py-1.5 text-body-sm";
-
-export function AdminTabs() {
-  const { pathname } = useLocation();
-  const tabs = [
-    { to: "/admin", label: t("admin.tabUsers"), active: pathname === "/admin" },
-    { to: "/admin/annotations", label: t("admin.tabAnnotations"), active: pathname.startsWith("/admin/annotations") },
-  ];
-  return (
-    <nav aria-label={t("admin.tabs")} className="flex flex-wrap gap-1 border-b border-border">
-      {tabs.map((tab) => (
-        <Link
-          key={tab.to}
-          to={tab.to}
-          aria-current={tab.active ? "page" : undefined}
-          className={`-mb-px inline-flex min-h-control items-center border-b-2 px-3 font-medium no-underline ${
-            tab.active ? "border-accent text-text" : "border-transparent text-muted hover:text-text"
-          }`}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 function Users() {
   const users = useUsers();
@@ -219,7 +194,6 @@ export function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="m-0 text-page font-semibold">{t("admin.title")}</h1>
-      <AdminTabs />
       <Users />
       <Invitations />
     </div>

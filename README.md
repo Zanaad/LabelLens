@@ -43,9 +43,9 @@ The reference data is a set of source-linked draft rows that have not been verif
   never ranks the products.
 - **Patient link and summary:** a short link in plain language that expires and can be revoked, and
   a printable one-page summary.
-- **Expert review:** experts agree or disagree with a verdict, without seeing who scanned it.
-- **Admin tools:** users and invitations, the reference table with a change history, and
-  validation labels and runs.
+- **Expert work:** experts review verdicts (without seeing who scanned), maintain the reference
+  table with a change history, and build the validation labels.
+- **Admin tools:** users, invitations and validation runs.
 - **Roles:** pharmacist, expert and admin. English only, light and dark theme.
 
 ## Installation / Setup
@@ -72,7 +72,7 @@ from `.env` afterwards. Sign in as that admin, open **Admin**, and create invita
 reviewers and more admins.
 
 The reference table (studied preparations and plant names) is loaded from
-`data/reference/ema-draft.json` on the first start, when the table is empty. After that, admins
+`data/reference/ema-draft.json` on the first start, when the table is empty. After that, experts
 edit it in the app.
 
 ### Label reading modes
@@ -146,10 +146,11 @@ flowchart TB
 
 Validation measures how often LabelLens is right on labels whose correct answers are known.
 
-1. **Add labels:** as an admin, open **Admin → Validation labels**, upload a label photo or paste
-   its text, check every field against the label, set the expected verdict (decided by someone
-   other than the app) and mark the label **Final**.
-2. **Run:** open **Validation** and click **Run validation**, or from the command line:
+1. **Add labels:** as an expert, open **Validation labels**, upload a label photo or paste its
+   text, check every field against the label, set the expected verdict and mark the label
+   **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
+2. **Run:** as an admin, open **Validation** and click **Run validation**, or from the command
+   line:
 
    ```bash
    docker compose exec backend python -m app.cli run-validation --out /validation/results

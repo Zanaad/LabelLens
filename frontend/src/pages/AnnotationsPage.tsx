@@ -15,7 +15,6 @@ import { ArrowLeftIcon, UploadIcon } from "../components/icons";
 import { Button, ButtonLink, Notice, inputClass } from "../components/ui";
 import { VERDICT_OPTIONS, VerdictChip } from "../components/verdict";
 import { formatDateTime, t, type MessageKey } from "../i18n";
-import { AdminTabs } from "./AdminPage";
 import { NotFoundPage } from "./StatusPages";
 
 const panel = "flex min-w-0 flex-col gap-4 rounded-control border border-border bg-surface"; // tables run edge to edge
@@ -27,7 +26,7 @@ function AddLabel() {
   const create = useCreateAnnotation();
   const fileInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
-  const open = (a: Annotation) => navigate(`/admin/annotations/${a.id}`);
+  const open = (a: Annotation) => navigate(`/labels/${a.id}`);
 
   const onText = (e: FormEvent) => {
     e.preventDefault();
@@ -80,61 +79,84 @@ function AddLabel() {
   );
 }
 
-export function AnnotationsPage() {
+function LabelsTable() {
   const list = useAnnotations();
   return (
+    <section aria-labelledby="list-title" className={`${panel} flex-[2_1_560px]`}>
+      <h2 id="list-title" className="m-0 px-6 pt-6 text-xl font-semibold">
+        {t("annot.title")}
+      </h2>
+      {list.data?.length === 0 ? (
+        <p className="m-0 px-6 pb-6 text-muted">{t("annot.empty")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] border-collapse text-body-sm">
+            <thead>
+              <tr className="bg-surface-2">
+                {(["colTitle", "colStatus", "colExpected", "colUpdated"] as const).map((k) => (
+                  <th key={k} scope="col" className="border-b border-border px-3 py-2.5 text-left font-semibold first:pl-6 last:pr-6">
+                    {t(`annot.${k}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {list.data?.map((a) => (
+                <tr key={a.id} className="hover:bg-surface-2">
+                  <th scope="row" className="border-b border-border py-2.5 pr-3 pl-6 text-left font-semibold">
+                    <Link to={`/labels/${a.id}`} className="text-text">
+                      {a.title}
+                    </Link>
+                  </th>
+                  <td className="border-b border-border px-3 py-2.5">{t(`annot.status.${a.status}`)}</td>
+                  <td className="border-b border-border px-3 py-2.5">
+                    {a.expected_verdict ? (
+                      <VerdictChip verdict={a.expected_verdict} internal />
+                    ) : (
+                      <span className="text-muted">{t("annot.notSet")}</span>
+                    )}
+                  </td>
+                  <td className="border-b border-border py-2.5 pr-6 pl-3 whitespace-nowrap">{formatDateTime(a.updated_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Experts only: validation labels are the answer key, so the team that runs the system doesn't write them.
+export function LabelsPage() {
+  return (
     <div className="flex flex-col gap-6">
-      <h1 className="m-0 text-page font-semibold">{t("admin.title")}</h1>
-      <AdminTabs />
+      <h1 className="m-0 text-page font-semibold">{t("nav.validationLabels")}</h1>
       <p className="m-0 max-w-[75ch] text-muted">{t("annot.intro")}</p>
       <div className="flex flex-wrap items-start gap-6">
-        <section aria-labelledby="list-title" className={`${panel} flex-[2_1_560px]`}>
-          <h2 id="list-title" className="m-0 px-6 pt-6 text-xl font-semibold">
-            {t("annot.title")}
-          </h2>
-          {list.data?.length === 0 ? (
-            <p className="m-0 px-6 pb-6 text-muted">{t("annot.empty")}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse text-body-sm">
-                <thead>
-                  <tr className="bg-surface-2">
-                    {(["colTitle", "colStatus", "colExpected", "colUpdated"] as const).map((k) => (
-                      <th key={k} scope="col" className="border-b border-border px-3 py-2.5 text-left font-semibold first:pl-6 last:pr-6">
-                        {t(`annot.${k}`)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.data?.map((a) => (
-                    <tr key={a.id} className="hover:bg-surface-2">
-                      <th scope="row" className="border-b border-border py-2.5 pr-3 pl-6 text-left font-semibold">
-                        <Link to={`/admin/annotations/${a.id}`} className="text-text">
-                          {a.title}
-                        </Link>
-                      </th>
-                      <td className="border-b border-border px-3 py-2.5">{t(`annot.status.${a.status}`)}</td>
-                      <td className="border-b border-border px-3 py-2.5">
-                        {a.expected_verdict ? (
-                          <VerdictChip verdict={a.expected_verdict} internal />
-                        ) : (
-                          <span className="text-muted">{t("annot.notSet")}</span>
-                        )}
-                      </td>
-                      <td className="border-b border-border py-2.5 pr-6 pl-3 whitespace-nowrap">{formatDateTime(a.updated_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        <LabelsTable />
         <div className="flex-[1_1_320px]">
           <AddLabel />
         </div>
       </div>
     </div>
+  );
+}
+
+function LabelImage({ annotation }: { annotation: Annotation }) {
+  return (
+    <section aria-labelledby="label-title" className={`${card} flex-[1_1_380px]`}>
+      <h2 id="label-title" className="m-0 text-xl font-semibold">
+        {t("queue.labelTitle")}
+      </h2>
+      <div className="flex justify-center rounded-control bg-photo p-4">
+        {annotation.has_image ? (
+          <img src={`/api/annotations/${annotation.id}/image`} alt={t("review.imageAlt")} className="max-h-[640px] max-w-full rounded-inner object-contain" />
+        ) : (
+          <pre className="m-0 w-full rounded-inner bg-surface p-5 font-mono text-sm whitespace-pre-wrap">{annotation.label_text}</pre>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -164,27 +186,12 @@ function Editor({ annotation }: { annotation: Annotation }) {
     });
   };
   const del = () => {
-    if (window.confirm(t("annot.deleteConfirm"))) remove.mutate(undefined, { onSuccess: () => navigate("/admin/annotations") });
+    if (window.confirm(t("annot.deleteConfirm"))) remove.mutate(undefined, { onSuccess: () => navigate("/labels") });
   };
 
   return (
     <div className="flex flex-wrap items-start gap-6">
-      <section aria-labelledby="label-title" className={`${card} flex-[1_1_380px]`}>
-        <h2 id="label-title" className="m-0 text-xl font-semibold">
-          {t("queue.labelTitle")}
-        </h2>
-        <div className="flex justify-center rounded-control bg-photo p-4">
-          {annotation.has_image ? (
-            <img
-              src={`/api/annotations/${annotation.id}/image`}
-              alt={t("review.imageAlt")}
-              className="max-h-[640px] max-w-full rounded-inner object-contain"
-            />
-          ) : (
-            <pre className="m-0 w-full rounded-inner bg-surface p-5 font-mono text-sm whitespace-pre-wrap">{annotation.label_text}</pre>
-          )}
-        </div>
-      </section>
+      <LabelImage annotation={annotation} />
 
       <form onSubmit={onSubmit} aria-labelledby="edit-title" className={`${card} flex-[1.3_1_520px]`}>
         <h2 id="edit-title" className="m-0 text-xl font-semibold">
@@ -238,6 +245,11 @@ function Editor({ annotation }: { annotation: Annotation }) {
               ))}
             </select>
             <span className="text-sm font-normal text-muted">{t("annot.expectedHint")}</span>
+            {annotation.expected_by && annotation.expected_at && (
+              <span className="text-sm font-normal text-muted">
+                {t("annot.expectedBy", { name: annotation.expected_by, date: formatDateTime(annotation.expected_at) })}
+              </span>
+            )}
           </label>
           <label className="flex flex-[1_1_180px] flex-col gap-1.5 font-semibold">
             {t("annot.status")}
@@ -298,15 +310,13 @@ function Editor({ annotation }: { annotation: Annotation }) {
   );
 }
 
-export function AnnotationEditorPage() {
+export function LabelEditorPage() {
   const { id = "" } = useParams();
   const annotation = useAnnotation(id);
   if (annotation.isError) return <NotFoundPage />;
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="m-0 text-page font-semibold">{t("admin.title")}</h1>
-      <AdminTabs />
-      <ButtonLink to="/admin/annotations" variant="secondary" className="self-start">
+      <ButtonLink to="/labels" variant="secondary" className="self-start">
         <ArrowLeftIcon />
         {t("annot.back")}
       </ButtonLink>

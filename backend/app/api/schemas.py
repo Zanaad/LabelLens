@@ -379,10 +379,6 @@ class ReferenceOut(BaseModel):
     plant_names: list[PlantNameOut]
 
 
-class CheckIn(BaseModel):
-    verified: bool
-
-
 class ReferenceChange(BaseModel):
     action: str
     by: str | None
@@ -420,6 +416,8 @@ class AnnotationOut(AnnotationIn):
     annotator: str | None
     checked_by: str | None
     checked_at: datetime | None
+    expected_by: str | None
+    expected_at: datetime | None
     prefilled: bool = False  # fields came from the label reader and still need checking
 
 

@@ -35,6 +35,7 @@ export type AnnotationItem = {
   updated_at: string;
 };
 
+// Validation labels: experts only, since they are the answer key.
 export type AnnotationInput = {
   title: string;
   fields: Record<FieldKey, string | null>;
@@ -52,12 +53,14 @@ export type Annotation = AnnotationInput & {
   annotator: string | null;
   checked_by: string | null;
   checked_at: string | null;
+  expected_by: string | null;
+  expected_at: string | null;
   prefilled: boolean;
 };
 
 const usersKey = ["admin", "users"] as const;
 const invitationsKey = ["admin", "invitations"] as const;
-const annotationsKey = ["admin", "annotations"] as const;
+const annotationsKey = ["annotations"] as const;
 
 export function useUsers() {
   return useQuery({ queryKey: usersKey, queryFn: () => api<AdminUser[]>("/api/admin/users") });

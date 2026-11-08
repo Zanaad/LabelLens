@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 os.environ.setdefault("APP_ENV", "test")
 os.environ["EXTRACTION_PROVIDER"] = "cached"
 os.environ["SMTP_HOST"] = ""  # tests must never send real email, even with a local .env
+os.environ["REVIEW_SAMPLE_PERCENT"] = "100"  # every result reaches the queue unless a test says
 os.environ.setdefault("JWT_SECRET", secrets.token_urlsafe(32))
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:")
 

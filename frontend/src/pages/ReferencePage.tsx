@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 import { useMe } from "../api/auth";
 import { errorCode } from "../api/client";
 import {
-  useCheckReference,
   usePreparationHistory,
   useReference,
   useSaveReference,
@@ -56,25 +55,17 @@ function CheckedStatus({ verified }: { verified: boolean }) {
   );
 }
 
-// Experts mark rows as checked; admins edit content but cannot check.
-function CheckButton({ table, id, verified, name }: { table: "preparations" | "plant-names"; id: string; verified: boolean; name: string }) {
-  const check = useCheckReference();
+// Ticked only after comparing every value with the source; unticked rows need a TODO(expert) note.
+function CheckedBox({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <Button
-      variant="secondary"
-      className={small}
-      disabled={check.isPending}
-      aria-label={t(verified ? "ref.uncheckFor" : "ref.checkFor", { name })}
-      onClick={() => check.mutate({ table, id, verified: !verified })}
-    >
-      {t(verified ? "ref.uncheck" : "ref.check")}
-    </Button>
+    <label className="flex items-start gap-2 text-body-sm">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        <span className="font-semibold">{t("ref.f.verified")}</span>
+        <span className="block text-sm text-muted">{t("ref.verifiedHint")}</span>
+      </span>
+    </label>
   );
-}
-
-// An admin's change to a checked row unchecks it: the old check no longer covers the new values.
-function UncheckNotice({ row }: { row: { verified: boolean } | null }) {
-  return row?.verified ? <Notice tone="info">{t("ref.uncheckOnSave")}</Notice> : null;
 }
 
 function History({ id }: { id: string }) {
@@ -103,6 +94,7 @@ function History({ id }: { id: string }) {
 
 function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose: () => void }) {
   const save = useSaveReference();
+  const [verified, setVerified] = useState(row?.verified ?? false);
   const [form, setForm] = useState(() => ({
     ...Object.fromEntries(TEXT_FIELDS.map((k) => [k, row?.[k] ?? ""])),
     extract_ratio_min: row?.extract_ratio_min?.toString() ?? "",
@@ -117,7 +109,7 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
       ...Object.fromEntries(TEXT_FIELDS.map((k) => [k, form[k].trim() || null])),
       extract_ratio_min: num(form.extract_ratio_min),
       extract_ratio_max: num(form.extract_ratio_max),
-      verified: false, // only experts check rows
+      verified,
       notes: form.notes.trim() || null,
     } as PreparationInput;
     save.mutate({ table: "preparations", id: row?.id ?? null, body }, { onSuccess: onClose });
@@ -141,7 +133,6 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
     <Dialog title={t(row ? "ref.editPrep" : "ref.newPrep")} onClose={onClose} wide>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {save.isError && <Notice tone="error">{t(`error.${errorCode(save.error)}` as MessageKey)}</Notice>}
-        <UncheckNotice row={row} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TEXT_FIELDS.slice(0, 3).map((k) => input(k))}
           <div className="grid grid-cols-2 gap-3">
@@ -161,6 +152,7 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
           />
           <span className="text-sm font-normal text-muted">{t("ref.notesHint")}</span>
         </label>
+        <CheckedBox checked={verified} onChange={setVerified} />
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             {t("ref.cancel")}
@@ -181,7 +173,7 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
     name: row?.name ?? "",
     language: row?.language ?? "en",
     latin_name: row?.latin_name ?? "",
-    verified: false, // only experts check rows
+    verified: row?.verified ?? false,
     notes: row ? row.notes : TODO,
   });
   const onSubmit = (e: FormEvent) => {
@@ -206,7 +198,6 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
     <Dialog title={t(row ? "ref.editName" : "ref.newName")} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {save.isError && <Notice tone="error">{t(`error.${errorCode(save.error)}` as MessageKey)}</Notice>}
-        <UncheckNotice row={row} />
         {text("name")}
         {text("language")}
         {text("latin_name")}
@@ -221,6 +212,7 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
           />
           <span className="text-sm font-normal text-muted">{t("ref.notesHint")}</span>
         </label>
+        <CheckedBox checked={form.verified} onChange={(verified) => setForm({ ...form, verified })} />
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
             {t("ref.cancel")}
@@ -234,14 +226,15 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
   );
 }
 
-type Editing = { kind: "prep"; row: Preparation | null } | { kind: "name"; row: PlantName | null } | null;
+type Editing =
+  | { kind: "prep"; row: Preparation | null }
+  | { kind: "name"; row: PlantName | null }
+  | null;
 
+// Everyone reads the table; only experts change it, since every value comes from a monograph.
 export function ReferencePage() {
   const reference = useReference();
-  const role = useMe().data?.role;
-  const isAdmin = role === "admin";
-  const isExpert = role === "expert";
-  const hasActions = isAdmin || isExpert;
+  const canEdit = useMe().data?.role === "expert";
   const remove = useSaveReference();
   const [editing, setEditing] = useState<Editing>(null);
 
@@ -265,7 +258,7 @@ export function ReferencePage() {
           <h2 id="preps-title" className="m-0 text-xl font-semibold">
             {t("ref.prepsTitle")}
           </h2>
-          {isAdmin && <Button onClick={() => setEditing({ kind: "prep", row: null })}>{t("ref.add")}</Button>}
+          {canEdit && <Button onClick={() => setEditing({ kind: "prep", row: null })}>{t("ref.add")}</Button>}
         </div>
         {reference.isSuccess && preps.length === 0 ? (
           <p className="m-0 px-6 pb-6 text-muted">{t("ref.empty")}</p>
@@ -281,7 +274,7 @@ export function ReferencePage() {
                       </th>
                     ),
                   )}
-                  {hasActions && (
+                  {canEdit && (
                     <th scope="col" className={th}>
                       {t("ref.colActions")}
                     </th>
@@ -312,12 +305,7 @@ export function ReferencePage() {
                     <td className={td}>
                       <CheckedStatus verified={p.verified} />
                     </td>
-                    {isExpert && (
-                      <td className={td}>
-                        <CheckButton table="preparations" id={p.id} verified={p.verified} name={p.preparation_type} />
-                      </td>
-                    )}
-                    {isAdmin && (
+                    {canEdit && (
                       <td className={td}>
                         <div className="flex gap-2">
                           <Button
@@ -352,7 +340,7 @@ export function ReferencePage() {
           <h2 id="names-title" className="m-0 text-xl font-semibold">
             {t("ref.namesTitle")}
           </h2>
-          {isAdmin && (
+          {canEdit && (
             <Button variant="secondary" onClick={() => setEditing({ kind: "name", row: null })}>
               {t("ref.addName")}
             </Button>
@@ -370,7 +358,7 @@ export function ReferencePage() {
                       {t(`ref.${k}`)}
                     </th>
                   ))}
-                  {hasActions && (
+                  {canEdit && (
                     <th scope="col" className={th}>
                       {t("ref.colActions")}
                     </th>
@@ -388,12 +376,7 @@ export function ReferencePage() {
                     <td className={td}>
                       <CheckedStatus verified={n.verified} />
                     </td>
-                    {isExpert && (
-                      <td className={td}>
-                        <CheckButton table="plant-names" id={n.id} verified={n.verified} name={n.name} />
-                      </td>
-                    )}
-                    {isAdmin && (
+                    {canEdit && (
                       <td className={td}>
                         <div className="flex gap-2">
                           <Button

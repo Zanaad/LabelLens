@@ -104,7 +104,7 @@ def test_expert_review(client: TestClient, db: Session, cache_dir: Path, referen
 
 
 def test_pharmacist_asks_an_expert(
-    client: TestClient, db: Session, cache_dir: Path, reference: None
+    client: TestClient, db: Session, cache_dir: Path, reference: None, monkeypatch
 ):
     save_reading(cache_dir, reading(plant="chamomile"))
     as_user(client, db, "arta@example.org", Role.pharmacist)
@@ -124,15 +124,23 @@ def test_pharmacist_asks_an_expert(
     detail = client.get(f"/api/reviews/{queue[0]['verdict_id']}").json()
     assert detail["verdict"]["review_question"] == question["question"]
 
+    # With no random sample, only results a pharmacist asked about reach the expert.
+    monkeypatch.setenv("REVIEW_SAMPLE_PERCENT", "0")
+    get_settings.cache_clear()
+    try:
+        assert [i["requested"] for i in client.get("/api/reviews").json()] == [True]
+    finally:
+        get_settings.cache_clear()  # monkeypatch puts the variable back after the test
+
 
 def test_reference_editing(client: TestClient, db: Session):
     row = {"herb_latin": "Valeriana officinalis", "plant_part": "Root", "preparation_type": "Tea"}
     todo = {**row, "notes": "TODO(expert): check"}
-    as_user(client, db, "e@example.org", Role.expert)
-    assert client.get("/api/reference").status_code == 200
-    assert client.post("/api/reference/preparations", json=todo).status_code == 403
-
     as_user(client, db, "admin@example.org", Role.admin)
+    assert client.get("/api/reference").status_code == 200
+    assert client.post("/api/reference/preparations", json=todo).status_code == 403  # read only
+
+    as_user(client, db, "e@example.org", Role.expert)
     r = client.post("/api/reference/preparations", json=row)
     assert r.status_code == 422 and r.json()["detail"] == "todo_note_required"
     bad = client.post(
@@ -141,17 +149,10 @@ def test_reference_editing(client: TestClient, db: Session):
     assert bad.json()["detail"] == "ratio_range_invalid"
     created = client.post("/api/reference/preparations", json=todo).json()
     url = f"/api/reference/preparations/{created['id']}"
-    assert client.put(url, json={**row, "verified": True}).status_code == 403  # experts check
-    assert client.put(f"{url}/check", json={"verified": True}).status_code == 403
-
-    as_user(client, db, "e2@example.org", Role.expert)
-    assert client.put(url, json=todo).status_code == 403  # experts don't edit content
-    assert client.put(f"{url}/check", json={"verified": True}).json()["verified"] is True
-
-    as_user(client, db, "admin2@example.org", Role.admin)
-    assert client.put(url, json=todo).json()["verified"] is True  # unchanged: check stays
-    edited = client.put(url, json={**todo, "plant_part": "Root and rhizome"}).json()
-    assert edited["verified"] is False  # changed content needs a new check
+    checked = {**todo, "verified": True}
+    assert client.put(url, json=checked).json()["verified"] is True
+    assert client.put(url, json=checked).status_code == 200  # unchanged: nothing recorded
+    client.put(url, json={**checked, "plant_part": "Root and rhizome"})
     history = client.get(f"{url}/history").json()
     assert [h["action"] for h in history] == ["update", "check", "create"]
     client.delete(url)
@@ -164,39 +165,39 @@ def test_validation_run(
     storage = LocalStorage(tmp_path / "storage")
     client.app.dependency_overrides[get_storage] = lambda: storage  # type: ignore[attr-defined]
     as_user(client, db, "admin@example.org", Role.admin)
+    assert client.post("/api/annotations/text", json={"text": LABEL}).status_code == 403
+    assert client.get("/api/annotations").status_code == 403  # experts own the answer key
+
+    as_user(client, db, "e@example.org", Role.expert)
     created = client.post("/api/annotations/text", json={"text": LABEL}).json()
     assert created["prefilled"] is False  # no saved reading yet
     again = client.post("/api/annotations/text", json={"text": LABEL})
     assert again.json()["detail"] == "duplicate_label"
 
     truth = {"plant": "chamomile", "plant_part": "flowers", "preparation_type": "tea"}
-    body = {"title": "Meadow Cup", "fields": truth, "status": "final"}
+    body = {
+        "title": "Meadow Cup",
+        "fields": truth,
+        "expected_verdict": "partly_matches",
+        "status": "final",
+    }
     url = f"/api/annotations/{created['id']}"
     assert client.put(url, json=body).json()["detail"] == "fields_check_required"
-    saved = client.put(
-        url,
-        json=body | {"expected_verdict": "partly_matches", "fields_checked": True},
-    ).json()
-    assert saved["fields_checked"] is True and saved["checked_by"] == "Admin"
-    checked_at = saved["checked_at"]
-    as_user(client, db, "admin2@example.org", Role.admin)
-    notes_only = client.put(
-        url,
-        json=body
-        | {"expected_verdict": "partly_matches", "fields_checked": True, "notes": "Reviewed"},
-    ).json()
-    assert notes_only["checked_at"] == checked_at
-    assert notes_only["checked_by"] == "Admin"
+    saved = client.put(url, json=body | {"fields_checked": True}).json()
+    assert saved["checked_by"] == "E" and saved["expected_by"] == "E"
+    as_user(client, db, "e2@example.org", Role.expert)
+    notes_only = client.put(url, json=body | {"fields_checked": True, "notes": "Reviewed"}).json()
+    assert notes_only["checked_at"] == saved["checked_at"]
+    assert notes_only["checked_by"] == "E" and notes_only["expected_by"] == "E"
+    assert client.post("/api/validation/runs", json={}).status_code == 403
 
     # The reader got the plant part wrong and invented a batch number.
     wrong = reading(plant="Chamomile", plant_part="leaves", preparation_type="tea", batch="X1")
     save_reading(cache_dir, wrong)
     save_reading(cache_dir, dict.fromkeys(FIELD_KEYS) | truth, PLAIN_PROMPT_VERSION)
 
-    as_user(client, db, "e@example.org", Role.expert)
-    assert client.post("/api/validation/runs", json={}).status_code == 403
     client.post("/api/auth/logout")
-    login(client, "admin2@example.org")
+    login(client, "admin@example.org")
     m = client.post("/api/validation/runs", json={}).json()["metrics"]
     assert m["dataset"]["labels"] == 1 and m["dataset"]["read"] == 1
     assert m["fields"]["plant"]["correct"] == 1  # case does not matter
@@ -216,15 +217,23 @@ def test_field_only_validation_requires_human_check(
     client.app.dependency_overrides[get_storage] = lambda: LocalStorage(  # type: ignore[attr-defined]
         tmp_path / "storage"
     )
-    as_user(client, db, "admin@example.org", Role.admin)
+    make_user(db, "admin@example.org", Role.admin)
+    as_user(client, db, "e@example.org", Role.expert)
     created = client.post("/api/annotations/text", json={"text": LABEL}).json()
     url = f"/api/annotations/{created['id']}"
     monkeypatch.setenv("EXTRACTION_PROVIDER", "groq")
     get_settings.cache_clear()
     save_reading(cache_dir, reading(plant="chamomile"))
 
-    draft = client.post("/api/validation/runs", json={}).json()["metrics"]
-    assert draft["dataset"]["labels"] == 0
+    def run() -> dict:
+        client.post("/api/auth/logout")
+        login(client, "admin@example.org")
+        metrics = client.post("/api/validation/runs", json={}).json()["metrics"]
+        client.post("/api/auth/logout")
+        login(client, "e@example.org")
+        return metrics
+
+    assert run()["dataset"]["labels"] == 0  # a draft doesn't count
 
     body = {
         "title": "Meadow Cup",
@@ -233,7 +242,7 @@ def test_field_only_validation_requires_human_check(
         "fields_checked": True,
     }
     assert client.put(url, json=body).status_code == 200
-    metrics = client.post("/api/validation/runs", json={}).json()["metrics"]
+    metrics = run()
     assert metrics["dataset"]["labels"] == 1
     assert metrics["fields"]["plant"]["correct"] == 1
     assert metrics["versions"]["model"] == get_settings().groq_model

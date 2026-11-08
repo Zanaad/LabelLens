@@ -40,7 +40,7 @@ class ReferenceHistory(IdMixin, CreatedMixin, Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="SET NULL")
     )
-    action: Mapped[str] = mapped_column(String(32))  # create | update | delete | import
+    action: Mapped[str] = mapped_column(String(32))  # create|update|check|uncheck|delete|import
     before_json: Mapped[dict[str, Any] | None] = mapped_column()
     after_json: Mapped[dict[str, Any] | None] = mapped_column()
 

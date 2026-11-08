@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_ttl_minutes: int = 480
     remember_me_days: int = 30  # session length when "Remember me" is ticked
+    # Share of ordinary results (not asked about) that reach the expert queue, 0-100.
+    review_sample_percent: int = Field(default=10, ge=0, le=100)
     cookie_name: str = "ll_session"
     cookie_secure: bool = False  # set true behind HTTPS
     password_min_length: int = 12

@@ -1,5 +1,6 @@
-# Validation labels (admin): a photo or pasted text, the correct fields and the expected verdict.
-# Photos are stored exactly as the model sees them, so validation can find their saved reading.
+# Validation labels are the answer key, so only experts build them: photo or pasted text, the
+# correct fields and the expected verdict. Photos are stored exactly as the model sees them, so
+# validation can find their saved reading.
 
 import hashlib
 import uuid
@@ -29,12 +30,13 @@ from app.services.storage import Storage, get_storage
 
 router = APIRouter(prefix="/api/annotations", tags=["annotations"])
 
-admin_only = require_roles(Role.admin)
+expert_only = require_roles(Role.expert)
 
 
 def _out(db: Session, a: Annotation, prefilled: bool = False) -> AnnotationOut:
     annotator = db.get(User, a.annotator_id) if a.annotator_id else None
     checker = db.get(User, a.checked_by_id) if a.checked_by_id else None
+    expert = db.get(User, a.expected_verdict_by_id) if a.expected_verdict_by_id else None
     return AnnotationOut(
         id=a.id,
         title=a.title,
@@ -49,6 +51,8 @@ def _out(db: Session, a: Annotation, prefilled: bool = False) -> AnnotationOut:
         fields_checked=a.checked_at is not None,
         checked_by=checker.full_name if checker else None,
         checked_at=a.checked_at,
+        expected_by=expert.full_name if expert else None,
+        expected_at=a.expected_verdict_at,
         prefilled=prefilled,
     )
 
@@ -64,7 +68,7 @@ def _create(
     db: Session,
     storage: Storage,
     provider: ExtractionProvider,
-    admin: User,
+    expert: User,
     *,
     image: bytes | None,
     text: str | None,
@@ -91,19 +95,19 @@ def _create(
         image_sha256=sha,
         fields_json=fields,
         status=AnnotationStatus.draft,
-        annotator_id=admin.id,
+        annotator_id=expert.id,
     )
     if image is not None:
         a.label_ref = storage.save(f"labels/{a.id}.jpg", image)
     db.add(a)
-    audit(db, "annotation.create", user_id=admin.id, entity_type="annotation", entity_id=a.id)
+    audit(db, "annotation.create", user_id=expert.id, entity_type="annotation", entity_id=a.id)
     db.commit()
     return _out(db, a, prefilled)
 
 
 @router.get("", response_model=list[AnnotationListItem])
 def list_annotations(
-    db: Session = Depends(get_db), _: User = Depends(admin_only)
+    db: Session = Depends(get_db), _: User = Depends(expert_only)
 ) -> list[AnnotationListItem]:
     rows = db.scalars(select(Annotation).order_by(Annotation.updated_at.desc()))
     return [
@@ -125,7 +129,7 @@ def create_from_image(
     db: Session = Depends(get_db),
     storage: Storage = Depends(get_storage),
     provider: ExtractionProvider = Depends(get_extraction_provider),
-    admin: User = Depends(admin_only),
+    expert: User = Depends(expert_only),
 ) -> AnnotationOut:
     max_bytes = get_settings().max_upload_mb * 1024 * 1024
     try:
@@ -134,7 +138,7 @@ def create_from_image(
         raise HTTPException(413 if e.code == "file_too_large" else 415, detail=e.code) from None
     title = PurePath(file.filename or "").stem
     return _create(
-        db, storage, provider, admin, image=image.model_data, text=None, fallback_title=title
+        db, storage, provider, expert, image=image.model_data, text=None, fallback_title=title
     )
 
 
@@ -144,17 +148,17 @@ def create_from_text(
     db: Session = Depends(get_db),
     storage: Storage = Depends(get_storage),
     provider: ExtractionProvider = Depends(get_extraction_provider),
-    admin: User = Depends(admin_only),
+    expert: User = Depends(expert_only),
 ) -> AnnotationOut:
     text = body.text.strip()
     return _create(
-        db, storage, provider, admin, image=None, text=text, fallback_title=text.splitlines()[0]
+        db, storage, provider, expert, image=None, text=text, fallback_title=text.splitlines()[0]
     )
 
 
 @router.get("/{annotation_id}", response_model=AnnotationOut)
 def get_annotation(
-    annotation_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(admin_only)
+    annotation_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(expert_only)
 ) -> AnnotationOut:
     return _out(db, _get(db, annotation_id))
 
@@ -164,7 +168,7 @@ def annotation_image(
     annotation_id: uuid.UUID,
     db: Session = Depends(get_db),
     storage: Storage = Depends(get_storage),
-    _: User = Depends(admin_only),
+    _: User = Depends(expert_only),
 ) -> Response:
     a = _get(db, annotation_id)
     if a.label_ref is None or not storage.exists(a.label_ref):
@@ -181,7 +185,7 @@ def update_annotation(
     annotation_id: uuid.UUID,
     body: AnnotationIn,
     db: Session = Depends(get_db),
-    admin: User = Depends(admin_only),
+    expert: User = Depends(expert_only),
 ) -> AnnotationOut:
     a = _get(db, annotation_id)
     if set(body.fields) - set(FIELD_KEYS):
@@ -193,17 +197,20 @@ def update_annotation(
     was_checked_final = a.status == AnnotationStatus.final and a.checked_at is not None
     a.title = body.title.strip()
     a.fields_json = new_fields
-    a.expected_verdict = body.expected_verdict
     a.status = body.status
     a.notes = (body.notes or "").strip() or None
-    a.annotator_id = admin.id
+    a.annotator_id = expert.id
+    if a.expected_verdict != body.expected_verdict:
+        a.expected_verdict = body.expected_verdict
+        a.expected_verdict_by_id = expert.id if body.expected_verdict else None
+        a.expected_verdict_at = datetime.now(UTC) if body.expected_verdict else None
     if body.status != AnnotationStatus.final:
         a.checked_by_id = None
         a.checked_at = None
     elif fields_changed or not was_checked_final:
-        a.checked_by_id = admin.id
+        a.checked_by_id = expert.id
         a.checked_at = datetime.now(UTC)
-    audit(db, "annotation.update", user_id=admin.id, entity_type="annotation", entity_id=a.id)
+    audit(db, "annotation.update", user_id=expert.id, entity_type="annotation", entity_id=a.id)
     db.commit()
     return _out(db, a)
 
@@ -213,12 +220,12 @@ def delete_annotation(
     annotation_id: uuid.UUID,
     db: Session = Depends(get_db),
     storage: Storage = Depends(get_storage),
-    admin: User = Depends(admin_only),
+    expert: User = Depends(expert_only),
 ) -> Response:
     a = _get(db, annotation_id)
     if a.label_ref:
         storage.delete(a.label_ref)
     db.delete(a)
-    audit(db, "annotation.delete", user_id=admin.id, entity_type="annotation", entity_id=a.id)
+    audit(db, "annotation.delete", user_id=expert.id, entity_type="annotation", entity_id=a.id)
     db.commit()
     return Response(status_code=204)
