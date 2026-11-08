@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(min_length=32, repr=False)
     jwt_algorithm: str = "HS256"
     jwt_ttl_minutes: int = 480
+    remember_me_days: int = 30  # session length when "Remember me" is ticked
     cookie_name: str = "ll_session"
     cookie_secure: bool = False  # set true behind HTTPS
     password_min_length: int = 12
@@ -37,10 +38,10 @@ class Settings(BaseSettings):
     storage_dir: str = "./storage"
     max_upload_mb: int = 10
 
-    # Extraction. Keys come only from env. "cached" replays saved outputs; "claude" calls the API.
-    extraction_provider: Literal["cached", "claude", "groq"] = "cached"
+    # Extraction. Keys come only from env. "cached" replays saved outputs; "groq" calls the API.
+    extraction_provider: Literal["cached", "groq"] = "cached"
+    # Model name in the cache keys of the hand-written example readings (cached mode only).
     extraction_model: str = "claude-opus-5-5"
-    extraction_api_key: str = Field(default="", repr=False)
     groq_model: str = "qwen/qwen3.8-27b"
     groq_api_key: str = Field(default="", repr=False)
     extraction_cache_dir: str = "../data/extraction_cache"
@@ -58,6 +59,7 @@ class Settings(BaseSettings):
     smtp_password: str = Field(default="", repr=False)
     smtp_from: str = "LabelLens <no-reply@labellens.local>"
     password_reset_ttl_minutes: int = 60
+    email_verification_ttl_hours: int = 24
 
     @field_validator("cors_origins")
     @classmethod

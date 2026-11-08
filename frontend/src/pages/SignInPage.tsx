@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useLogin } from "../api/auth";
+import { useLogin, useResendVerification } from "../api/auth";
 import { errorCode } from "../api/client";
 import { ROLE_HOME } from "../app/navigation";
 import { AuthHeading, AuthLayout } from "../components/AuthLayout";
-import { Button, Field, Notice, PasswordField } from "../components/ui";
+import { Button, Checkbox, Field, Notice, PasswordField } from "../components/ui";
 import { t, type MessageKey } from "../i18n";
 
 export function SignInPage() {
@@ -12,15 +12,17 @@ export function SignInPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const login = useLogin();
+  const resend = useResendVerification();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
 
   const from = (location.state as { from?: string } | null)?.from;
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     login.mutate(
-      { email, password },
+      { email, password, remember_me: remember },
       { onSuccess: (user) => navigate(from ?? ROLE_HOME[user.role], { replace: true }) },
     );
   }
@@ -39,6 +41,14 @@ export function SignInPage() {
         {login.isError && (
           <Notice tone="error">{t(`error.${errorCode(login.error)}` as MessageKey)}</Notice>
         )}
+        {login.isError && errorCode(login.error) === "email_not_verified" &&
+          (resend.isSuccess ? (
+            <Notice tone="success">{t("register.resent")}</Notice>
+          ) : (
+            <Button variant="secondary" disabled={resend.isPending} onClick={() => resend.mutate(email)}>
+              {t("register.resend")}
+            </Button>
+          ))}
         <Field
           label={t("signIn.email")}
           type="email"
@@ -60,6 +70,7 @@ export function SignInPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+        <Checkbox label={t("signIn.remember")} checked={remember} onChange={(e) => setRemember(e.target.checked)} />
         <Button type="submit" className="w-full text-[17px]" disabled={login.isPending}>
           {login.isPending ? t("form.submitting") : t("signIn.submit")}
         </Button>

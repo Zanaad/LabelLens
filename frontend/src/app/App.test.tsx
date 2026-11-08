@@ -10,7 +10,7 @@ import { App } from "./App";
 
 const NOW = new Date().toISOString();
 
-const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null };
+const pharmacist: User = { id: "1", email: "arta@example.org", full_name: "Arta Krasniqi", organisation: null, role: "pharmacist", onboarded_at: null, email_verified: true };
 const expert: User = { ...pharmacist, id: "2", email: "besim@example.org", full_name: "Besim Hoxha", role: "expert" };
 
 // Generated per run so no password or token literal is ever committed.
@@ -90,11 +90,12 @@ describe("routing and auth", () => {
     await user.type(screen.getByLabelText("Password"), PASSWORD);
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("heading", { name: "Review queue" })).toBeInTheDocument();
-    expect(sentBody(fetchMock, "/api/auth/login")).toEqual({ email: "besim@example.org", password: PASSWORD });
+    expect(sentBody(fetchMock, "/api/auth/login")).toEqual({ email: "besim@example.org", password: PASSWORD, remember_me: false });
   });
 
-  it("registers with both consents", async () => {
-    const fetchMock = mockApi(null, (url) => (url === "/api/auth/register" ? { status: 201, body: pharmacist } : undefined));
+  it("registers with both consents and asks to confirm the email", async () => {
+    const unconfirmed = { ...pharmacist, email_verified: false };
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/register" ? { status: 201, body: unconfirmed } : undefined));
     renderApp("/register");
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Full name"), "Arta Krasniqi");
@@ -104,6 +105,14 @@ describe("routing and auth", () => {
     await user.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/auth/register")).toBe(true));
     expect(sentBody(fetchMock, "/api/auth/register")).toMatchObject({ accept_privacy: true, accept_terms: true });
+    expect(await screen.findByRole("heading", { level: 1, name: "Check your email" })).toBeInTheDocument();
+  });
+
+  it("confirms the email from the link's fragment and signs in", async () => {
+    const fetchMock = mockApi(null, (url) => (url === "/api/auth/verify-email" ? { status: 200, body: pharmacist } : undefined));
+    renderApp(`/verify-email#${SHARE_TOKEN}`);
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => u === "/api/auth/verify-email")).toBe(true));
+    expect(sentBody(fetchMock, "/api/auth/verify-email")).toEqual({ token: SHARE_TOKEN });
   });
 
   it("reads the invitation token from the URL fragment", async () => {
@@ -196,6 +205,7 @@ const verdict = {
   sources: [
     { id: "r1", herb_latin: "Matricaria recutita L.", evidence_level: null, source_doc: "EU monograph", source_section: null, source_url: null, verified: false },
   ],
+  reviews: [{ rating: "disagree", correct_verdict: "cannot_say", reason: "Species is not stated" }],
 };
 
 describe("result", () => {
@@ -208,6 +218,8 @@ describe("result", () => {
     expect(screen.getByText(/can mean more than one species \(Chamaemelum nobile \(L\.\) All\. or Matricaria/)).toBeInTheDocument();
     expect(screen.getByText(/Which species is this: A or B\?/)).toBeInTheDocument();
     expect(screen.getByText(/Sample reference data/)).toBeInTheDocument();
+    expect(screen.getByText(/A reviewer disagreed with this verdict\. Suggested verdict: Cannot say/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Partly matches" })).toBeInTheDocument(); // verdict unchanged
     await userEvent.setup().click(screen.getByRole("button", { name: "Open source 1" }));
     expect(within(screen.getByRole("dialog", { name: "Sources" })).getByText("EU monograph")).toBeInTheDocument();
   });
@@ -218,6 +230,26 @@ describe("result", () => {
     );
     renderApp("/scans/s1/result");
     expect(await screen.findByRole("heading", { level: 1, name: "Review extracted fields" })).toBeInTheDocument();
+  });
+});
+
+describe("compare", () => {
+  it("lists only the fields that differ between two checked scans", async () => {
+    const other = { ...scan, id: "s2", product_name: "CAMOMILE PLUS", fields: { ...scan.fields, solvent: stated("ethanol 60%") } };
+    const item = { created_at: NOW, status: "checked", missing: 1, verdict: "partly_matches" };
+    mockApi(pharmacist, (url) =>
+      url === "/api/scans"
+        ? { status: 200, body: [{ ...item, id: "s1", product_name: "MEADOW CUP", plant: "chamomile" }, { ...item, id: "s2", product_name: "CAMOMILE PLUS", plant: "chamomile" }] }
+        : url === "/api/scans/s1" || url === "/api/scans/s2"
+          ? { status: 200, body: url.endsWith("s1") ? scan : other }
+          : url.endsWith("/verdict")
+            ? { status: 200, body: verdict }
+            : undefined,
+    );
+    renderApp("/compare?a=s1&b=s2");
+    expect(await screen.findAllByText("Differs")).toHaveLength(1);
+    expect(screen.getAllByText("Same")).toHaveLength(5);
+    expect(screen.getAllByText("Neither states it")).toHaveLength(4);
   });
 });
 
@@ -378,10 +410,12 @@ describe("expert and admin", () => {
     expect(await screen.findByText("Matricaria recutita L.")).toBeInTheDocument();
     expect(screen.getByText("Sample, not checked")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit Herbal tea" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark Herbal tea as checked against the source" })).toBeInTheDocument();
     cleanup();
     mockApi(admin, (url) => (url === "/api/reference" ? { status: 200, body: reference } : undefined));
     renderApp("/reference");
     expect(await screen.findByRole("button", { name: "Edit Herbal tea" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /as checked/ })).not.toBeInTheDocument(); // only experts check
   });
 
   it("shows validation numbers with their uncertainty and a table view", async () => {

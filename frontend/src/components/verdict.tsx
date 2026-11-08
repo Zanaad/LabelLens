@@ -1,6 +1,6 @@
-import type { ResultItem, Source, VerdictCode } from "../api/scans";
+import type { ResultItem, ReviewOpinion, Source, VerdictCode } from "../api/scans";
 import { t, type MessageKey } from "../i18n";
-import { CannotSayIcon, MatchIcon, PartialIcon } from "./icons";
+import { CannotSayIcon, MatchIcon, PartialIcon, ReviewIcon } from "./icons";
 
 type VerdictStyle = {
   Icon: typeof MatchIcon;
@@ -95,5 +95,28 @@ export function VerdictChip({ verdict, internal = false }: { verdict: VerdictCod
       <v.Icon size={16} />
       {internal && verdict === "differs" ? t("verdict.differs") : t(v.short)}
     </span>
+  );
+}
+
+// Reviewer ratings shown next to the verdict; they advise the pharmacist and never replace it.
+export function ReviewerOpinions({ reviews }: { reviews: ReviewOpinion[] }) {
+  if (reviews.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2 rounded-control border border-border bg-surface-2 p-4">
+      <h3 className="m-0 inline-flex items-center gap-2 text-base font-semibold">
+        <ReviewIcon size={18} />
+        {t("opinion.title")}
+      </h3>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+        {reviews.map((r, i) => (
+          <li key={i}>
+            {t(`opinion.${r.rating}` as MessageKey)}
+            {r.correct_verdict && ` ${t("opinion.suggests", { verdict: t(VERDICT[r.correct_verdict].title) })}`}
+            {r.reason && <span className="block text-sm text-muted">“{r.reason}”</span>}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0 text-sm text-muted">{t("opinion.note")}</p>
+    </div>
   );
 }

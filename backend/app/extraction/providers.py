@@ -9,8 +9,6 @@ from typing import Any, Protocol, TypeVar
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-import anthropic
-from anthropic.types.beta import BetaContentBlockParam
 from pydantic import BaseModel
 
 from app.config import get_settings
@@ -58,9 +56,6 @@ preparation type, extract ratio, extraction solvent, standardised marker, dose p
 ingredients, batch number, expiry date and product name. Use null for anything you cannot find."""
 
 Schema = TypeVar("Schema", bound=BaseModel)
-
-# Models that accept server-side refusal fallbacks (fallbacks="default").
-FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
 
 
 class ExtractionError(Exception):
@@ -120,75 +115,6 @@ class CachedProvider:
             raise ExtractionError("not_in_cache")
         fields = LabelExtraction.model_validate(output)
         return ExtractionResult(output, fields, self.name, self.model, key, None)
-
-
-class ClaudeProvider:
-    name = "claude"
-
-    def __init__(self, model: str, api_key: str, cache_dir: str | Path):
-        self.model = model
-        self.cache_dir = Path(cache_dir)
-        # Empty key falls back to the SDK's own lookup (ANTHROPIC_API_KEY or `ant auth login`).
-        self.client = anthropic.Anthropic(api_key=api_key or None, timeout=120)
-
-    def extract(self, *, image: bytes | None, text: str | None) -> ExtractionResult:
-        key = cache_key(_input_bytes(image, text), self.model)
-        started = time.monotonic()
-        fields = self._parse(image, text, PROMPT, LabelExtraction)
-        latency_ms = int((time.monotonic() - started) * 1000)
-        output = fields.model_dump(mode="json")
-        self._save(key, PROMPT_VERSION, output)
-        return ExtractionResult(output, fields, self.name, self.model, key, latency_ms)
-
-    def extract_plain(self, *, image: bytes | None, text: str | None) -> dict[str, Any]:
-        """Validation baseline reading; cached under PLAIN_PROMPT_VERSION."""
-        key = cache_key(_input_bytes(image, text), self.model, PLAIN_PROMPT_VERSION)
-        output = self._parse(image, text, PLAIN_PROMPT, PlainLabelExtraction).model_dump()
-        self._save(key, PLAIN_PROMPT_VERSION, output)
-        return output
-
-    def _parse(
-        self, image: bytes | None, text: str | None, prompt: str, schema: type[Schema]
-    ) -> Schema:
-        label: BetaContentBlockParam
-        if image is not None:
-            data = base64.standard_b64encode(image).decode()
-            label = {
-                "type": "image",
-                "source": {"type": "base64", "media_type": "image/jpeg", "data": data},
-            }
-        else:
-            label = {"type": "text", "text": f"<label_text>\n{text}\n</label_text>"}
-        extra: dict[str, Any] = {}
-        if self.model in FALLBACK_MODELS:
-            extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"}
-        try:
-            response = self.client.beta.messages.parse(
-                model=self.model,
-                max_tokens=16000,
-                output_config={"effort": "medium"},
-                output_format=schema,
-                messages=[{"role": "user", "content": [label, {"type": "text", "text": prompt}]}],
-                **extra,
-            )
-        except anthropic.AuthenticationError:
-            raise ExtractionError("provider_misconfigured") from None
-        except (anthropic.RateLimitError, anthropic.APIStatusError, anthropic.APIConnectionError):
-            raise ExtractionError("provider_unavailable") from None
-        if response.stop_reason == "refusal" or response.parsed_output is None:
-            raise ExtractionError("extraction_failed")
-        return response.parsed_output
-
-    def _save(self, key: str, prompt_version: str, output: dict[str, Any]) -> None:
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        record = {
-            "provider": self.name,
-            "model": self.model,
-            "prompt_version": prompt_version,
-            "output": output,
-        }
-        path = self.cache_dir / f"{key}.json"
-        path.write_text(json.dumps(record, indent=2, ensure_ascii=False))
 
 
 def _groq_schema(schema: type[Schema]) -> dict[str, Any]:
@@ -347,8 +273,6 @@ class GroqProvider:
 
 def get_extraction_provider() -> ExtractionProvider:
     s = get_settings()
-    if s.extraction_provider == "claude":
-        return ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
     if s.extraction_provider == "groq":
         return GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
     return CachedProvider(s.extraction_model, s.extraction_cache_dir)

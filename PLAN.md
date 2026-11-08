@@ -14,7 +14,7 @@ the herbal preparations studied in EU monographs, and gives one of three answers
 It only checks what is printed on the label, not what is inside the product. It never says a
 product is "safe", never gives dosing advice, and never treats missing information as good news.
 
-## Where we are (6 Nov 2026)
+## Where we are (7 Nov 2026)
 
 | Step | What it includes | Status |
 | --- | --- | --- |
@@ -35,8 +35,8 @@ independently verified. The result page labels unchecked reference rows as sampl
 
 - **AI label reading:** GroqCloud's `qwen/qwen3.8-27b` vision model through the backend, with
   `EXTRACTION_PROVIDER=groq` and a private `GROQ_API_KEY` in `.env`. The key is never sent to the
-  browser or committed. The free tier has rate limits. Claude remains an optional paid provider;
-  cached mode replays saved readings without an API call.
+  browser or committed. The free tier has rate limits. Claude is no longer used; cached mode
+  replays saved readings without an API call.
 - **Evidence data:** `data/reference/ema-draft.json`, seven source-linked draft preparations for
   Ginkgo, German chamomile, and St John's wort, transcribed from EMA monographs. The older
   `sample.json` is a fixture. Check the active database's rows before making a claim about its
@@ -47,15 +47,16 @@ independently verified. The result page labels unchecked reference rows as sampl
 - **Output:** a cautious verdict, field-by-field comparison, source links, missing-detail
   questions, patient link, and browser-printable one-page summary.
 
-### AI reading reliability (branch `ai-reading-reliability`)
+### AI reading reliability
 
 Groq strict-schema failures retry once using JSON-object output, then validate the same field
-schema locally. Placeholder strings presented as stated label values are rejected. Connection
-failures retry once and return the provider-unavailable message if they persist. Successful
-Groq readings are reused for an identical image and prompt/model; the chamomile photo succeeded
-on a later attempt and its reading was cached. Live cache files are excluded from Git.
+schema locally. Placeholder strings presented as stated label values are rejected, and so is a
+stated value that does not appear in its quoted evidence (ignoring case, spacing and
+punctuation). Connection failures retry once and return the provider-unavailable message if they
+persist. Successful Groq readings are reused for an identical image and prompt/model. Live cache
+files are excluded from Git.
 
-### Hackathon validation workflow (branch `hackathon-validation`)
+### Hackathon validation workflow
 
 - The validation run now selects the active Groq model, so it can find saved Groq readings.
 - An admin explicitly confirms every field against the image before a Final label enters the
@@ -82,13 +83,68 @@ on a later attempt and its reading was cached. Live cache files are excluded fro
    expected answers and their basis; report counts and uncertainty. If there are too few checked
    labels, show examples and limitations instead of an accuracy percentage. Expert review is an
    optional later improvement, not a dependency for the prototype.
-4. **Improve the real-photo path.** Test small-print labels and measure failures after the new
-   retry handling. Prevent a value with unrelated quoted evidence from being counted as a stated
-   field. A successful API call alone does not establish reading accuracy.
-5. **Finish demo and deployment work.** Decide whether to keep fictional example labels clearly
-   marked in the app, and deploy with HTTPS, secure production configuration, backups, and a
-   smoke test. The current Compose setup is for
-   local use. Record the EMA reuse terms before publishing reference data in a public repository.
+4. **Improve the real-photo path.** Test small-print labels and measure failures after the retry
+   handling and the new evidence check (done 7 Nov). A successful API call alone does not
+   establish reading accuracy.
+5. **Demo and deployment.** Deployment (HTTPS, secure production configuration, backups, smoke
+   test) is handled by a teammate; the current Compose setup is for local use. Still ours:
+   decide whether to keep fictional example labels clearly marked in the app, and record the EMA
+   reuse terms before publishing reference data in a public repository.
+6. **Wording reviews.** The About and Settings text (`TODO(team)`) and the patient wording
+   (`TODO(expert)`, ideally a pharmacist) still need a read-through.
+
+### Roles: production target vs today (8 Nov)
+
+How each role should behave if LabelLens went to production, against what the app does now.
+✅ done, ⚠️ partly, ❌ missing.
+
+**Pharmacist** (the main user)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Create an account | Self-registration with email verification; ideally an organisation or licence check | Self-registration; the email must be confirmed before signing in (when SMTP is set up); no licence check | ⚠️ |
+| Scan, review fields, get the verdict | Yes | Yes | ✅ |
+| History, recheck, delete own scans, export own data | Yes | Yes | ✅ |
+| See only their own scans | Yes | Yes | ✅ |
+| Patient links, printable summary, compare two products | Yes | Yes | ✅ |
+| See reviewer opinions next to the verdict | Yes, as advice only | Yes | ✅ |
+| Ask an expert about an uncertain result | Yes, with an optional question | Yes; the expert queue lists these first | ✅ |
+| Read the reference table and validation results | Read-only | Read-only | ✅ |
+
+**Expert** (domain judgement)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Account | Invitation-only | Invitation-only, link emailed | ✅ |
+| Review queue | Escalated cases first, plus a random sample, not every scan | Escalated cases first, then every other checked scan, newest first | ⚠️ |
+| Rate without seeing the pharmacist or other reviewers | Yes | Yes | ✅ |
+| Mark reference rows as checked, without editing content | Yes | Yes | ✅ |
+| Suggest a correction to a reference row | Yes | No; must tell an admin outside the app | ❌ |
+| Set the expected verdict on validation labels | Yes, it is expert judgement | No, the admin sets it | ❌ |
+| See validation results | Read-only | Read-only | ✅ |
+
+**Admin** (runs the system)
+
+| Capability | In production | Today | Status |
+| --- | --- | --- | --- |
+| Manage users: deactivate, reset password | Yes | Yes | ✅ |
+| Change a user's role | Yes | No; only active or inactive | ❌ |
+| Invite experts and admins | Yes, by email | Yes | ✅ |
+| Transcribe reference rows, without checking them | Yes | Yes | ✅ |
+| Validation labels (fields) and runs | Yes | Yes | ✅ |
+| Usage statistics (scans per day, verdict mix, review backlog) | Yes | No screen | ❌ |
+| View the audit log | Yes | Logged, but no screen | ❌ |
+| Never see pharmacists' scans or patient data | Correct | Correct | ✅ |
+| Never review verdicts | Correct | Correct | ✅ |
+
+**All roles**
+
+| Area | In production | Today | Status |
+| --- | --- | --- | --- |
+| Two-step sign-in (MFA) for admins and experts | Yes | No | ❌ |
+| Data retention: delete old scans and photos automatically | A set policy | Manual deletion only | ⚠️ |
+| Rate limits | Shared across restarts and servers | In memory, reset on restart | ⚠️ |
+| HTTPS, backups, deployment | Yes | Handled by a teammate | ⚠️ |
 
 ### Possible later features
 
@@ -100,19 +156,18 @@ on a later attempt and its reading was cached. Live cache files are excluded fro
 
 ## How label reading works
 
-There are three modes, chosen with `EXTRACTION_PROVIDER` in `.env`:
+Two modes are used, chosen with `EXTRACTION_PROVIDER` in `.env`:
 
 - **Demo mode (`cached`, the default).** No AI call and no cost. The app replays saved readings
   from `data/extraction_cache/`. Right now only the three example labels on the Scan page have
   saved readings, so uploading a real photo shows a "demo mode" message.
 - **Groq mode (`groq`).** The photo or text is sent to the Groq-hosted Qwen vision model. Set
-  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier.
-- **Claude mode (`claude`).** The photo is sent to Claude, Anthropic's AI model, which reads the
-  label. This needs an **Anthropic API key** (a paid key from console.anthropic.com) in
-  `EXTRACTION_API_KEY`. Every reading is saved, so it can be replayed later for free.
+  `GROQ_API_KEY` and `GROQ_MODEL=qwen/qwen3.8-27b`. It has a limited free tier. Every reading is
+  saved, so it can be replayed later for free.
 
-The default model is **Claude Opus 5.5** (`claude-opus-5-5`). To use the cheaper Claude Sonnet 5.5,
-set `EXTRACTION_MODEL=claude-sonnet-5-5`.
+Claude was the original provider and was removed on 7 Nov (code, `anthropic` dependency, docs).
+`EXTRACTION_MODEL` stays only because the hand-written example readings are saved under that
+model name; cached mode needs it to find them.
 
 ## Decisions and risks to communicate
 
@@ -128,6 +183,20 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 - **Publication:** check EMA reuse terms and the active database content before public release.
 
 ## Decisions made
+
+### Email verification and "Ask an expert" (8 Nov)
+
+- **Email verification.** With `SMTP_HOST` set, a self-registered pharmacist gets a one-time
+  link (`/verify-email#<token>`, valid 24 hours, hash stored only) and cannot sign in until it is
+  opened; opening it signs them in. Sign-in says "confirm your email" only after the right
+  password, and "Send the link again" answers the same for unknown emails. Without `SMTP_HOST`
+  (local runs, tests) accounts are confirmed at once. Invited accounts and the seeded admin count
+  as confirmed. Migration 0006 marks existing accounts as confirmed.
+- **Ask an expert.** On the result card and scan detail page a pharmacist can ask an expert to
+  look at the latest result, with an optional question (no patient details). The expert queue
+  lists these first until that expert has rated them, with an "Asked by a pharmacist" filter, and
+  shows the question without the pharmacist's name. Asking again only updates the question. It
+  never changes the verdict. No email to experts yet.
 
 ### Recheck saved scans (6 Nov)
 
@@ -192,17 +261,29 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
   - Admins can also send a reset email from the user list.
   - Email is sent over SMTP with settings in `.env`; no new library. We use Gmail with an app
     password; with no `SMTP_HOST` set, no email is sent.
-- **Expert review queue.** Experts and admins see the newest verdict of each checked scan,
+- **Roles split (8 Nov, agreed):** admins run the system (users, invitations, editing the
+  reference table, validation labels and runs, statistics); only experts judge (the review queue,
+  and marking reference rows as checked). An admin's change to a checked row's content unchecks
+  it, because the old check no longer covers the new values. Ratings admins gave before the split
+  stay stored. Validation expected verdicts stay with the admin for now; ideally an expert decides
+  them.
+- **Expert review queue.** Experts see the newest verdict of each checked scan,
   without the pharmacist's name or email (as onboarding promises). They choose Agree, Disagree
   (then the right verdict) or Unsure, with an optional reason. A review shows up in the
   pharmacist's activity log.
+- **Reviewer opinions are shown, never applied** (8 Nov, agreed). The verdict stays the rules'
+  answer. The pharmacist sees each rating on the scan detail page and result card ("A reviewer
+  disagreed. Suggested verdict: …", with the reason), and My scans tags the latest check with the
+  most notable rating (disagreed, then unsure, then agreed). No reviewer name is ever returned.
+  Not shown on the patient link or the printed summary. Wording says "a reviewer", because admins
+  can rate too.
 - **"Differs" is named on expert and admin screens** ("Differs from every studied preparation"),
   so the mentor can see it. Pharmacists and patients still see "Cannot say".
 - **Admin users page:** deactivate or reactivate accounts (it takes effect immediately), send a
   reset email, and see the invitations. Admins can't deactivate themselves.
-- **Reference table page** for everyone; admins add, edit and delete rows, and every change to a
-  studied preparation is kept in a history (who, when, which fields). Rows not yet checked still
-  need a `TODO(expert)` note.
+- **Reference table page** for everyone; admins add, edit and delete rows, experts mark rows as
+  checked or not checked, and every change to a studied preparation is kept in a history (who,
+  when, which fields, including checks). Rows not yet checked still need a `TODO(expert)` note.
 - **Validation labels (admin):**
   - Upload a photo or paste label text. The app pre-fills the fields from its own reading when
     there is one; the annotator corrects every field and sets the expected verdict.
@@ -228,8 +309,13 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ### Step 3 (4 Nov)
 
-- **Compare two products: postponed** (agreed). The design has no Compare screen. The Compare
-  buttons and the "Saved comparisons" tile are left out until it is designed.
+- **Compare two products: built on 7 Nov, simple version** (agreed). The design links to a
+  Compare screen but never drew it, so this layout is ours. `/compare` puts two checked scans side
+  by side: verdict, details the label leaves out, and the ten label fields marked Same, Differs or
+  Neither states it. It never ranks or picks a winner, and dose is shown but not evaluated. It is
+  reached from "Compare with another product" on the result card and scan detail page. Frontend
+  only. **Saved comparisons** (the design's tile on My scans) stay left out: they would need a new
+  table, endpoints and tests. TODO(team): check the layout against the design owner's intent.
 - **PDF = the browser's "Save as PDF"** (agreed). The summary page is an A4 sheet styled for
   printing; it always prints in the light theme and fits on one page for the example labels.
   No new dependencies.
@@ -288,12 +374,12 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
 
 ### Step 1 (3 Nov)
 
-- **AI model:** Claude Opus 5.5 by default (see "How label reading works"). If Claude declines a
-  label, it automatically retries with another Claude model. The AI must fill in a fixed form
+- **AI model:** first built on Claude Opus 5.5; since step 5 the team uses Groq
+  (`qwen/qwen3.8-27b`, see "How label reading works"). The AI must fill in a fixed form
   (value, status, confidence, quoted label text for each field), so its answers always have the
-  same shape.
-- **New libraries (approved):** `anthropic` (talks to Claude), `python-multipart` (file uploads),
-  `pillow` (image handling).
+  same shape, whichever provider reads the label.
+- **New libraries (approved):** `python-multipart` (file uploads), `pillow` (image handling).
+  `anthropic` was also added for Claude and removed on 7 Nov.
 - **Pasting label text: yes. iPhone HEIC photos: no** (needs another library). The page says "JPG or PNG".
 - **Wording changes (approved):** onboarding says "never says whether a product is harmless or
   right for someone" instead of mentioning safety; "medium confidence" no longer says "inferred",
@@ -319,15 +405,24 @@ set `EXTRACTION_MODEL=claude-sonnet-5-5`.
   `email-validator`, `psycopg[binary]`, `argon2-cffi`, `pyjwt`, and `httpx` for tests; frontend
   testing and lint tools only. Rate limiting and translations are small home-made versions
   instead of extra libraries.
-- **Staying logged in:** a secure cookie that lasts 8 hours. Logging out ends it on that device;
+- **Staying logged in:** a secure cookie that lasts 8 hours, or 30 days when "Remember me" is
+  ticked on the sign-in page (`REMEMBER_ME_DAYS`, 7 Nov; registration and invitations always use
+  8 hours). Changing the password or signing out everywhere still ends every session. Logging out ends it on that device;
   we can't force-logout someone from elsewhere (fine for a hackathon).
 - **Protection against attacks from other websites:** strict cookie settings, JSON-only requests,
   and an explicit list of allowed sites.
 - **Rate limit:** 10 login or register attempts per minute per IP address. Kept in memory, so it
   resets when the backend restarts.
-- **Invitations:** no email is sent. The admin copies a one-time link, valid 7 days. Pharmacists
-  register themselves and can't be invited.
-- **First admin** is created from the command line: `python -m app.cli create-admin`.
+- **Invitations:** the one-time link (valid 7 days) is emailed to the invited address (7 Nov; SMTP
+  as for password reset, nothing is sent without `SMTP_HOST`) and is still shown to the admin to
+  copy as a fallback. Pharmacists register themselves and can't be invited. Tests never send real
+  email: `conftest.py` blanks `SMTP_HOST`.
+- **First admin** is created on the first start from `ADMIN_EMAIL`, `ADMIN_NAME` and
+  `ADMIN_PASSWORD` in `.env` (`seed-admin`, run by the container entrypoint; it does nothing if an
+  admin already exists). More admins: `python -m app.cli create-admin`, or an invitation.
+- **Reference table** is loaded from `data/reference/ema-draft.json` on start by `seed-reference`,
+  only while the table is empty (agreed: no "already seeded" flag). If an admin deletes every row
+  and the backend restarts, the draft rows come back. `import-reference` still upserts by hand.
 - **Tests** run on SQLite locally (fast); CI also runs them on PostgreSQL and checks that the
   database migrations match the code.
 - **Fonts** load from Google Fonts, like the design. We can host them ourselves later for privacy.
@@ -356,4 +451,4 @@ every screen. The colours from the design are in `frontend/src/theme/tokens.css`
 Screens the original design mentions but does not draw include accept invitation, forgot password,
 settings, about, reference table, validation, methods, compare, expert review queue, and admin.
 The current app implements invitation, password reset, reference, validation, methods, expert
-review, and admin screens. Compare remains postponed; About and Settings need a final content pass.
+review, admin and a simple compare screen; About and Settings need a final content pass.

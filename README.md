@@ -2,172 +2,153 @@
 
 **Does the evidence for this herb apply to this product?**
 
-LabelLens helps pharmacists check whether a herbal product's label describes the same kind of
-preparation that was studied in EU herbal monographs. A pharmacist photographs the label; LabelLens
-reads it, compares it with studied preparations, and returns one of:
+> Research prediction, not medical advice. This checks the label, not what is inside the product.
+> LabelLens gives no dosing or treatment advice.
+
+## Overview
+
+Studies say a herb helped, but only for the exact preparation they tested: a given plant part,
+extract type, extract ratio and solvent. A shop product that just says "St John's wort" may be a
+different preparation, so the evidence may not apply to it.
+
+LabelLens helps pharmacists check this. A pharmacist photographs a herbal product's label;
+LabelLens reads it, compares it with the preparations studied in EU herbal monographs, and returns
+one of three answers:
 
 - **Matches a studied preparation**
 - **Partly matches**
 - **Cannot say whether the evidence applies**
 
 It also lists what the label leaves out, with a question to ask for each, and links every claim to
-its source.
+its source. It never judges whether a product is harmless or right for someone, and it never
+treats missing information as good news.
 
-> Research prediction, not medical advice. This checks the label, not what is inside the product.
-> LabelLens gives no dosing or treatment advice.
+Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: working prototype.
+The reference data is a set of source-linked draft rows that have not been verified by an expert.
 
-Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: early
-development (scan, review, result, scan history, patient share links, printable summary, expert
-review, admin pages and validation work; reference data is a sample).
+## Features
 
-## What LabelLens does, in plain words
+- **Scan:** upload a label photo (JPG or PNG) or paste label text.
+- **AI label reading:** a vision model copies what is printed on the label into ten fields, each
+  with a confidence and the exact label text it came from. Values that are not printed stay "not
+  stated"; the reader never guesses.
+- **Pharmacist review:** the pharmacist checks and corrects every field before anything is compared.
+- **Evidence check:** rules (not the AI) compare plant, plant part, preparation, extract ratio and
+  solvent with the studied preparations, and give the verdict with reasons and source links.
+- **What the label leaves out:** a checklist of missing details with a question for the
+  manufacturer or the patient, which can be copied.
+- **History:** every scan and every dated verdict is kept; a saved scan can be checked again
+  against the current reference table.
+- **Compare two products:** two checked scans side by side, showing which label fields differ. It
+  never ranks the products.
+- **Patient link and summary:** a short link in plain language that expires and can be revoked, and
+  a printable one-page summary.
+- **Expert review:** experts agree or disagree with a verdict, without seeing who scanned it.
+- **Admin tools:** users and invitations, the reference table with a change history, and
+  validation labels and runs.
+- **Roles:** pharmacist, expert and admin. English only, light and dark theme.
 
-Studies say a herb helped, but only for the exact preparation they tested: a given plant part,
-extract type, extract ratio and solvent. A shop product that just says "St John's wort" may be a
-different preparation, so the evidence may not apply to it.
-
-1. **Read:** the app copies what the label says (plant, plant part, preparation, ratio, solvent)
-   and the pharmacist fixes any mistake.
-2. **Compare:** it checks those facts against the studied preparations in the EU monographs.
-3. **Answer:** matches, partly matches, or cannot say, plus what the label leaves out and what to
-   ask the manufacturer, with a source for every claim.
-
-Reading the label is only the first step. The value is in the comparison.
-
-## Quick start (Docker)
+## Installation / Setup
 
 Requirements: Docker with Compose v2.
 
 ```bash
-cp .env.example .env            # then fill in POSTGRES_PASSWORD and JWT_SECRET
+cp .env.example .env   # then fill in the empty values
 docker compose up --build
 ```
 
-Generate each secret with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+Generate each secret with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. The admin
+password needs at least 12 characters. The Groq key comes from
+[GroqCloud](https://console.groq.com/keys). For Gmail, `SMTP_PASSWORD` is an app password (Google
+Account → Security → 2-Step Verification → App passwords), not your normal one.
 
 - App: http://localhost:8080
 - API docs: http://localhost:8000/api/docs
 
-Pharmacists register themselves at `/register`. Expert reviewers and admins are invitation-only;
-create the first admin from the command line (it asks for the password):
+Pharmacists register themselves at `/register`. Expert reviewers and admins are invitation-only.
+The first admin is created automatically on the first start from `ADMIN_EMAIL`, `ADMIN_NAME`
+(optional) and `ADMIN_PASSWORD`; it does nothing if an admin already exists. Remove the password
+from `.env` afterwards. Sign in as that admin, open **Admin**, and create invitation links for
+reviewers and more admins.
 
-```bash
-docker compose exec backend python -m app.cli create-admin --email you@example.org --name "Your Name"
-```
+The reference table (studied preparations and plant names) is loaded from
+`data/reference/ema-draft.json` on the first start, when the table is empty. After that, admins
+edit it in the app.
 
-Then sign in as that admin, open **Admin**, and create invitation links for reviewers.
+### Label reading modes
 
-Load the reference table (studied preparations and plant names). Running it again only applies
-changes:
+With `EXTRACTION_PROVIDER=groq`, photos and pasted text are read by a Groq-hosted vision model
+(`GROQ_MODEL`) using the key in `.env`. Groq's free tier has rate limits, so read each demo label
+once beforehand.
 
-```bash
-docker compose exec backend python -m app.cli import-reference /data/reference/ema-draft.json
-```
-
-## Label reading
-
-By default (`EXTRACTION_PROVIDER=cached`) LabelLens replays saved readings from
-`data/extraction_cache/`, so it runs without an API key or cost. In this mode only the three
-example labels on the Scan page can be read; their saved readings are hand-written fixtures.
-
-To read new label photos or pasted text with Groq's free API, create a key at
-[GroqCloud](https://console.groq.com/keys), then set these in `.env`:
-
-```bash
-EXTRACTION_PROVIDER=groq
-GROQ_MODEL=qwen/qwen3.8-27b
-GROQ_API_KEY=                  # your private GroqCloud key
-```
-
-Run `docker compose up -d --build backend`. Keep the key only in `.env`, not `.env.example`.
-Groq's free tier has rate limits; check your account's limits before a demo. No paid tier is
-selected automatically. Do not scan labels containing patient or personal information.
-
-To read real labels with Claude, set these in `.env` and restart:
-
-```bash
-EXTRACTION_PROVIDER=claude
-EXTRACTION_MODEL=claude-opus-5-5     # or another Claude model, e.g. claude-sonnet-5-5
-EXTRACTION_API_KEY=                  # your Anthropic API key
-```
+With `EXTRACTION_PROVIDER=cached` no API is called: LabelLens replays saved readings from
+`data/extraction_cache/`, and only the three example labels on the Scan page can be read (their
+readings are hand-written fixtures).
 
 Every real reading is saved to `data/extraction_cache/` (keyed by input, prompt version and
-model), so it can be replayed later with the cached provider and used for validation.
+model), so it can be replayed later and used for validation.
 
-## Email (password reset)
+## How it works
 
-"Forgot password?" emails a one-time link that expires after 60 minutes; admins can also send
-one from **Admin → Users**. Without `SMTP_HOST` no email is sent. Put your provider's SMTP details
-in `.env` and restart. For Gmail, turn on 2-Step Verification, create an app password under
-Google Account → Security → App passwords, and use it as `SMTP_PASSWORD`:
+1. **Read.** The AI copies the label text into fixed fields (plant, plant part, preparation type,
+   extract ratio, solvent, marker, dose, other ingredients, batch, expiry). Each field is
+   `stated`, `not_stated` or `unreadable`, and carries a confidence and its evidence text. A stated
+   value that does not appear in its evidence is rejected.
+2. **Review.** The pharmacist corrects the fields. Corrections are kept in the scan's history.
+3. **Compare.** The rules engine looks the plant name up in the plant names table, then compares
+   plant part, preparation type, extract ratio and solvent with every studied preparation of that
+   plant. Each field is a match, partial match, mismatch, missing or not applicable. Dose and
+   marker are shown but not compared.
+4. **Answer.** The verdict follows from those comparisons:
 
-```bash
-APP_BASE_URL=https://your-labellens-address   # start of the link inside the email
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURITY=starttls                        # or ssl (port 465) or none
-SMTP_USERNAME=                                # your Gmail address
-SMTP_PASSWORD=                                # the app password, not your normal password
-SMTP_FROM="LabelLens <your.address@gmail.com>"
+   | Verdict | When |
+   | --- | --- |
+   | Matches a studied preparation | every field fits one studied preparation |
+   | Partly matches | one preparation is still possible, nothing contradicts it, but something is less specific |
+   | Cannot say whether the evidence applies | two or more preparations are still possible, or the label contradicts them all |
+   | Not yet covered | the plant is not in the reference table |
+
+   The rules engine returns codes only; all wording is in `frontend/src/i18n/en.ts`. Every check
+   is stored with the rules version, so old results stay as they were.
+
+The AI reads the label; it never chooses the verdict.
+
+## Project flow
+
+```mermaid
+flowchart LR
+    A["Photo or pasted text"] --> B["AI reads the label<br/>(ten fields, with evidence)"]
+    B --> C["Pharmacist reviews<br/>and corrects fields"]
+    C --> D["Rules engine compares<br/>with studied preparations"]
+    D --> E["Verdict + reasons<br/>+ sources"]
+    D --> F["What the label leaves out<br/>+ questions to ask"]
+    E --> G["Scan history"]
+    E --> H["Patient link"]
+    E --> I["Printable summary"]
+    E --> J["Compare two products"]
+    E --> K["Expert review"]
 ```
 
-Check the spam folder when testing.
+## Visualization
 
-## Local development
-
-Backend (Python 3.11+):
-
-```bash
-cd backend
-python -m venv .venv && . .venv/bin/activate
-pip install -e '.[dev]'
-# needs a PostgreSQL 16 and DATABASE_URL + JWT_SECRET in .env (format in .env.example)
-alembic upgrade head
-uvicorn app.main:app --reload
-
-# Checks
-ruff check . && ruff format --check . && mypy app
-pytest                           # SQLite, no services needed
-TEST_DATABASE_URL="<postgres url>" pytest   # same tests on PostgreSQL
-
-# Migrations
-alembic revision --autogenerate -m "describe change"
-alembic upgrade head && alembic check
+```mermaid
+flowchart TB
+    U["Browser<br/>(React, TypeScript)"] -->|"/api"| N["Frontend container<br/>(nginx)"]
+    N --> B["Backend<br/>(FastAPI)"]
+    B --> R["Rules engine<br/>(pure Python)"]
+    B --> P[("PostgreSQL")]
+    B --> S[("Photo storage")]
+    B -->|"label photo or text"| G["Groq API<br/>(vision model)"]
+    B -->|"saved readings"| C[("Extraction cache")]
 ```
-
-Frontend (Node 22 LTS, see `frontend/.nvmrc`):
-
-```bash
-cd frontend
-npm ci
-npm run dev                      # http://localhost:5173, proxies /api to :8000
-npm run lint && npm run typecheck && npm test && npm run build
-```
-
-On a machine with an older Node, run the checks in a container:
-
-```bash
-docker run --rm -u $(id -u):$(id -g) -e npm_config_cache=/tmp/.npm -v "$PWD":/app -w /app node:22 npm test
-```
-
-## Data sources and licences
-
-Reference preparations come from EU herbal monographs published by the European Medicines Agency (Committee on Herbal Medicinal Products,
-HMPC) and the studies they cite. The reference table in this repository
-(`data/reference/ema-draft.json`) contains **seven source-linked draft rows** (`verified=false`,
-transcribed from final EMA monographs); these rows still need checking by a pharmacognosy
-mentor. The import refuses unchecked rows without a `TODO(expert)` note, and the result page
-says "sample reference data" while any row it used is unchecked.
-
-Code: [MIT licence](LICENSE).
 
 ## Validation
 
 Validation measures how often LabelLens is right on labels whose correct answers are known.
 
 1. **Add labels:** as an admin, open **Admin → Validation labels**, upload a label photo or paste
-   its text, check every field against the label, set the expected verdict (decided by an expert)
-   and mark the label **Final**.
+   its text, check every field against the label, set the expected verdict (decided by someone
+   other than the app) and mark the label **Final**.
 2. **Run:** open **Validation** and click **Run validation**, or from the command line:
 
    ```bash
@@ -182,11 +163,42 @@ Validation measures how often LabelLens is right on labels whose correct answers
    matching, and a plain AI prompt without our rules), expert agreement, and every mistake. All
    numbers come with a 95% confidence range.
 
-Labels without a saved reading are left out of the field and end-to-end numbers. With an API key
-with the configured live provider, `python -m app.cli fetch-readings` reads them (and the
-plain-prompt baseline) through Groq or Claude; the readings are saved for later runs.
+Labels without a saved reading are left out of the field and end-to-end numbers.
+`python -m app.cli fetch-readings` reads them (and the plain-prompt baseline) with Groq; the
+readings are saved for later runs. Accuracy figures are only quoted from a stored run over Final
+labels.
 
-Every number used in the pitch must come from a stored run over Final labels.
+## Data sources and licences
+
+Reference preparations come from EU herbal monographs published by the European Medicines Agency
+(Committee on Herbal Medicinal Products, HMPC) and the studies they cite. The reference table in
+this repository (`data/reference/ema-draft.json`) contains **seven source-linked draft rows**
+(`verified=false`) transcribed from final EMA monographs for St John's wort, ginkgo and German
+chamomile. They still need checking by a qualified reviewer. The import refuses unchecked rows
+without a `TODO(expert)` note, and the result page says "sample reference data" while any row it
+used is unchecked. Coverage is partial: it is not a complete monograph database.
+
+See `DATA_SOURCES.md` for sources and open questions. Code: [MIT licence](LICENSE).
+
+## Confidential
+
+- **Not medical advice.** Every page says "Research prediction, not medical advice", and results
+  say the label is checked, not the product's contents. There is no dosing or treatment advice.
+- **Do not scan personal information.** Labels with patient or personal details should not be
+  uploaded.
+- **What is stored.** Label photos (turned upright, location and camera data removed), the fields
+  read from them, corrections, verdicts and an audit log. Users can delete a scan with its photo,
+  delete their whole history, and revoke all their patient links.
+- **Third-party processing.** In Groq mode the label photo or text is sent to GroqCloud for
+  reading. In cached mode nothing leaves the server.
+- **Patient links.** The token sits after `#` in the link, so it never reaches server logs; only
+  its hash is stored. Links expire after 24 hours, 7 days or 30 days and can be revoked. A patient
+  sees only the product name, the plant and the verdict.
+- **Expert review is anonymous.** Experts see verdicts without the pharmacist's name or email.
+- **Accounts.** Passwords are hashed with Argon2, sessions last 8 hours in a secure cookie, login
+  and registration are rate limited, and role checks are enforced in the backend.
+- **Secrets.** Keys, passwords and tokens live only in `.env`, which is not committed.
+  `.env.example` keeps them empty.
 
 ## Repository layout
 
@@ -196,13 +208,14 @@ backend/
     main.py          FastAPI app factory
     config.py        settings from env vars (see .env.example)
     db.py            database engine and session
-    cli.py           admin commands (create-admin, import-reference, run-validation, fetch-readings)
+    cli.py           admin commands (create-admin, seed-admin, import-reference, run-validation,
+                     fetch-readings)
     api/             routes (auth, admin, invitations, scans, share links, reviews, reference,
                      annotations, validation, health), auth dependencies, schemas
     models/          SQLAlchemy models
     services/        password hashing, tokens, rate limiting, audit log, file storage, email,
                      validation runs
-    extraction/      label extraction providers
+    extraction/      label reading (Groq provider, cached replay, field schema)
     rules/           rules engine (pure Python, versioned): label fields vs studied preparations
   alembic/           database migrations
   tests/             pytest
@@ -213,6 +226,14 @@ frontend/src/
   pages/             one file per screen
   i18n/              UI strings (English)
   theme/             design tokens (CSS variables), theme toggle
-data/                reference table (sample.json), saved label readings
+data/                reference rows (ema-draft.json, sample.json), saved label readings
 validation/results/  JSON copies of validation runs (run-validation --out)
 ```
+
+## Contributors
+
+Built by the LabelLens team for EthnoHack 2026, Track 4.
+
+- [Zana Ademi](https://github.com/Zanaad)
+- [Yllkë Berisha](https://github.com/yllkaberisha)
+- [Alketa Zekaj](https://github.com/AlketaZekaj)

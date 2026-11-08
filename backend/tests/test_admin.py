@@ -91,6 +91,39 @@ def test_expert_review(client: TestClient, db: Session, cache_dir: Path, referen
     assert agree.json()["correct_verdict"] is None
     assert client.get("/api/reviews").json()[0]["my_rating"] == "agree"  # updated, not duplicated
 
+    client.post("/api/auth/logout")
+    login(client, "arta@example.org")
+    log = client.get(f"/api/scans/{scan['id']}/history").json()["activity"]
+    review = [a for a in log if a["action"] == "scan.review"][-1]  # one entry per rating change
+    assert review["by"] is None  # the expert stays anonymous
+    assert review["details"] == {"rating": "agree"}
+    [opinion] = client.get(f"/api/scans/{scan['id']}/verdict").json()["reviews"]
+    assert opinion["rating"] == "agree"
+    assert set(opinion) == {"rating", "correct_verdict", "reason"}  # nothing about who
+    assert client.get("/api/scans").json()[0]["review"] == "agree"
+
+
+def test_pharmacist_asks_an_expert(
+    client: TestClient, db: Session, cache_dir: Path, reference: None
+):
+    save_reading(cache_dir, reading(plant="chamomile"))
+    as_user(client, db, "arta@example.org", Role.pharmacist)
+    asked, newer = (client.post("/api/scans/text", json={"text": LABEL}).json() for _ in "ab")
+    url = f"/api/scans/{asked['id']}/review-request"
+    assert client.post(url, json={}).json()["detail"] == "no_verdict"  # nothing checked yet
+    client.post(f"/api/scans/{asked['id']}/verdict")
+    client.post(f"/api/scans/{newer['id']}/verdict")
+    question = {"question": "Is 'chamomile' enough to tell the species?"}
+    verdict = client.post(url, json=question).json()
+    assert verdict["review_requested_at"] and verdict["review_question"] == question["question"]
+
+    as_user(client, db, "besim@example.org", Role.expert)
+    assert client.post(url, json=question).status_code == 403  # only the owner asks
+    queue = client.get("/api/reviews").json()
+    assert [i["requested"] for i in queue] == [True, False]  # asked about, though older, first
+    detail = client.get(f"/api/reviews/{queue[0]['verdict_id']}").json()
+    assert detail["verdict"]["review_question"] == question["question"]
+
 
 def test_reference_editing(client: TestClient, db: Session):
     row = {"herb_latin": "Valeriana officinalis", "plant_part": "Root", "preparation_type": "Tea"}
@@ -108,12 +141,21 @@ def test_reference_editing(client: TestClient, db: Session):
     assert bad.json()["detail"] == "ratio_range_invalid"
     created = client.post("/api/reference/preparations", json=todo).json()
     url = f"/api/reference/preparations/{created['id']}"
-    client.put(url, json={**row, "verified": True})
+    assert client.put(url, json={**row, "verified": True}).status_code == 403  # experts check
+    assert client.put(f"{url}/check", json={"verified": True}).status_code == 403
+
+    as_user(client, db, "e2@example.org", Role.expert)
+    assert client.put(url, json=todo).status_code == 403  # experts don't edit content
+    assert client.put(f"{url}/check", json={"verified": True}).json()["verified"] is True
+
+    as_user(client, db, "admin2@example.org", Role.admin)
+    assert client.put(url, json=todo).json()["verified"] is True  # unchanged: check stays
+    edited = client.put(url, json={**todo, "plant_part": "Root and rhizome"}).json()
+    assert edited["verified"] is False  # changed content needs a new check
     history = client.get(f"{url}/history").json()
-    assert [h["action"] for h in history] == ["update", "create"]
-    assert history[0]["before"]["verified"] is False and history[0]["after"]["verified"] is True
+    assert [h["action"] for h in history] == ["update", "check", "create"]
     client.delete(url)
-    assert len(db.scalars(select(ReferenceHistory)).all()) == 3  # history outlives the row
+    assert len(db.scalars(select(ReferenceHistory)).all()) == 4  # history outlives the row
 
 
 def test_validation_run(

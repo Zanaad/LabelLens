@@ -1,14 +1,36 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useRegister } from "../api/auth";
+import { useRegister, useResendVerification } from "../api/auth";
 import { errorCode } from "../api/client";
 import { AuthHeading, AuthLayout } from "../components/AuthLayout";
 import { Button, Checkbox, Field, Notice, PasswordField } from "../components/ui";
 import { t, type MessageKey } from "../i18n";
 
+// Shown after registering when the address must be confirmed first.
+function CheckEmail({ email }: { email: string }) {
+  const resend = useResendVerification();
+  return (
+    <AuthLayout>
+      <AuthHeading title={t("register.checkTitle")} intro={t("register.checkBody", { email })} />
+      <p className="m-0 text-muted">{t("register.checkSpam")}</p>
+      {resend.isSuccess ? (
+        <Notice tone="success">{t("register.resent")}</Notice>
+      ) : (
+        <Button variant="secondary" disabled={resend.isPending} onClick={() => resend.mutate(email)}>
+          {t("register.resend")}
+        </Button>
+      )}
+      <p className="m-0 text-center">
+        <Link to="/sign-in">{t("register.signIn")}</Link>
+      </p>
+    </AuthLayout>
+  );
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const register = useRegister();
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -22,8 +44,12 @@ export function RegisterPage() {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    register.mutate(form, { onSuccess: () => navigate("/onboarding", { replace: true }) });
+    register.mutate(form, {
+      onSuccess: (user) => (user.email_verified ? navigate("/onboarding", { replace: true }) : setSentTo(user.email)),
+    });
   }
+
+  if (sentTo) return <CheckEmail email={sentTo} />;
 
   return (
     <AuthLayout>

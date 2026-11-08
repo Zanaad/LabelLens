@@ -2,10 +2,12 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useScan, useVerdict, type Scan, type Verdict } from "../api/scans";
+import { AskExpert } from "../components/AskExpert";
 import { ComparisonTable } from "../components/ComparisonTable";
 import {
   BookIcon,
   CloseIcon,
+  CompareIcon,
   CopyIcon,
   DownloadIcon,
   EditIcon,
@@ -16,7 +18,7 @@ import {
 } from "../components/icons";
 import { ShareDialog } from "../components/ShareDialog";
 import { Button, ButtonLink, Eyebrow, Notice, Steps } from "../components/ui";
-import { VERDICT, groupSources, say, type SourceDoc } from "../components/verdict";
+import { ReviewerOpinions, VERDICT, groupSources, say, type SourceDoc } from "../components/verdict";
 import { t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
 
@@ -194,6 +196,7 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
                 );
               })}
             </ol>
+            <ReviewerOpinions reviews={verdict.reviews} />
           </section>
 
           <ComparisonTable comparisons={verdict.comparisons} />
@@ -255,6 +258,11 @@ function ResultView({ scan, verdict }: { scan: Scan; verdict: Verdict }) {
             <ButtonLink to={`/scans/${scan.id}/summary`} variant="secondary" className="justify-start">
               <DownloadIcon />
               {t("result.exportSummary")}
+            </ButtonLink>
+            <AskExpert scanId={scan.id} verdict={verdict} />
+            <ButtonLink to={`/compare?a=${scan.id}`} variant="secondary" className="justify-start">
+              <CompareIcon />
+              {t("compare.link")}
             </ButtonLink>
             <Button variant="secondary" onClick={copy} className="justify-start">
               <CopyIcon />

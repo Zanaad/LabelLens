@@ -10,6 +10,7 @@ export type User = {
   organisation: string | null;
   role: Role;
   onboarded_at: string | null;
+  email_verified: boolean;
 };
 
 export type RegisterInput = {
@@ -55,7 +56,7 @@ function useSignedIn() {
 export function useLogin() {
   const onSignedIn = useSignedIn();
   return useMutation({
-    mutationFn: (body: { email: string; password: string }) =>
+    mutationFn: (body: { email: string; password: string; remember_me: boolean }) =>
       api<User>("/api/auth/login", { method: "POST", json: body }),
     onSuccess: onSignedIn,
   });
@@ -65,7 +66,23 @@ export function useRegister() {
   const onSignedIn = useSignedIn();
   return useMutation({
     mutationFn: (body: RegisterInput) => api<User>("/api/auth/register", { method: "POST", json: body }),
+    // With email set up, the account is signed in only after the emailed link is opened.
+    onSuccess: (user) => user.email_verified && onSignedIn(user),
+  });
+}
+
+// The token comes from the link's fragment (/verify-email#<token>); success signs the user in.
+export function useVerifyEmail() {
+  const onSignedIn = useSignedIn();
+  return useMutation({
+    mutationFn: (token: string) => api<User>("/api/auth/verify-email", { method: "POST", json: { token } }),
     onSuccess: onSignedIn,
+  });
+}
+
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: (email: string) => api<void>("/api/auth/resend-verification", { method: "POST", json: { email } }),
   });
 }
 

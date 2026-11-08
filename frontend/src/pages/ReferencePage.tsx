@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMe } from "../api/auth";
 import { errorCode } from "../api/client";
 import {
+  useCheckReference,
   usePreparationHistory,
   useReference,
   useSaveReference,
@@ -11,7 +12,7 @@ import {
   type PreparationInput,
 } from "../api/reference";
 import { ExternalIcon, InfoIcon, MatchIcon } from "../components/icons";
-import { Button, Checkbox, Dialog, Eyebrow, Notice, inputClass } from "../components/ui";
+import { Button, Dialog, Eyebrow, Notice, inputClass } from "../components/ui";
 import { formatDateTime, t, type MessageKey } from "../i18n";
 
 const panel = "flex min-w-0 flex-col gap-4 rounded-control border border-border bg-surface"; // tables run edge to edge
@@ -55,6 +56,27 @@ function CheckedStatus({ verified }: { verified: boolean }) {
   );
 }
 
+// Experts mark rows as checked; admins edit content but cannot check.
+function CheckButton({ table, id, verified, name }: { table: "preparations" | "plant-names"; id: string; verified: boolean; name: string }) {
+  const check = useCheckReference();
+  return (
+    <Button
+      variant="secondary"
+      className={small}
+      disabled={check.isPending}
+      aria-label={t(verified ? "ref.uncheckFor" : "ref.checkFor", { name })}
+      onClick={() => check.mutate({ table, id, verified: !verified })}
+    >
+      {t(verified ? "ref.uncheck" : "ref.check")}
+    </Button>
+  );
+}
+
+// An admin's change to a checked row unchecks it: the old check no longer covers the new values.
+function UncheckNotice({ row }: { row: { verified: boolean } | null }) {
+  return row?.verified ? <Notice tone="info">{t("ref.uncheckOnSave")}</Notice> : null;
+}
+
 function History({ id }: { id: string }) {
   const history = usePreparationHistory(id);
   if (!history.data?.length) return null;
@@ -85,11 +107,8 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
     ...Object.fromEntries(TEXT_FIELDS.map((k) => [k, row?.[k] ?? ""])),
     extract_ratio_min: row?.extract_ratio_min?.toString() ?? "",
     extract_ratio_max: row?.extract_ratio_max?.toString() ?? "",
-    verified: row?.verified ?? false,
     notes: row ? (row.notes ?? "") : TODO,
-  }) as Record<(typeof TEXT_FIELDS)[number] | "extract_ratio_min" | "extract_ratio_max" | "notes", string> & {
-    verified: boolean;
-  });
+  }) as Record<(typeof TEXT_FIELDS)[number] | "extract_ratio_min" | "extract_ratio_max" | "notes", string>);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -98,7 +117,7 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
       ...Object.fromEntries(TEXT_FIELDS.map((k) => [k, form[k].trim() || null])),
       extract_ratio_min: num(form.extract_ratio_min),
       extract_ratio_max: num(form.extract_ratio_max),
-      verified: form.verified,
+      verified: false, // only experts check rows
       notes: form.notes.trim() || null,
     } as PreparationInput;
     save.mutate({ table: "preparations", id: row?.id ?? null, body }, { onSuccess: onClose });
@@ -122,6 +141,7 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
     <Dialog title={t(row ? "ref.editPrep" : "ref.newPrep")} onClose={onClose} wide>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {save.isError && <Notice tone="error">{t(`error.${errorCode(save.error)}` as MessageKey)}</Notice>}
+        <UncheckNotice row={row} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {TEXT_FIELDS.slice(0, 3).map((k) => input(k))}
           <div className="grid grid-cols-2 gap-3">
@@ -130,11 +150,6 @@ function PreparationDialog({ row, onClose }: { row: Preparation | null; onClose:
           </div>
           {TEXT_FIELDS.slice(3).map((k) => input(k))}
         </div>
-        <Checkbox
-          label={t("ref.f.verified")}
-          checked={form.verified}
-          onChange={(e) => setForm({ ...form, verified: e.target.checked })}
-        />
         <label className="flex flex-col gap-1.5 font-semibold">
           {t("ref.f.notes")}
           <textarea
@@ -166,7 +181,7 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
     name: row?.name ?? "",
     language: row?.language ?? "en",
     latin_name: row?.latin_name ?? "",
-    verified: row?.verified ?? false,
+    verified: false, // only experts check rows
     notes: row ? row.notes : TODO,
   });
   const onSubmit = (e: FormEvent) => {
@@ -191,10 +206,10 @@ function NameDialog({ row, onClose }: { row: PlantName | null; onClose: () => vo
     <Dialog title={t(row ? "ref.editName" : "ref.newName")} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         {save.isError && <Notice tone="error">{t(`error.${errorCode(save.error)}` as MessageKey)}</Notice>}
+        <UncheckNotice row={row} />
         {text("name")}
         {text("language")}
         {text("latin_name")}
-        <Checkbox label={t("ref.f.verified")} checked={form.verified} onChange={(e) => setForm({ ...form, verified: e.target.checked })} />
         <label className="flex flex-col gap-1.5 font-semibold">
           {t("ref.f.notes")}
           <textarea
@@ -223,7 +238,10 @@ type Editing = { kind: "prep"; row: Preparation | null } | { kind: "name"; row: 
 
 export function ReferencePage() {
   const reference = useReference();
-  const isAdmin = useMe().data?.role === "admin";
+  const role = useMe().data?.role;
+  const isAdmin = role === "admin";
+  const isExpert = role === "expert";
+  const hasActions = isAdmin || isExpert;
   const remove = useSaveReference();
   const [editing, setEditing] = useState<Editing>(null);
 
@@ -263,7 +281,7 @@ export function ReferencePage() {
                       </th>
                     ),
                   )}
-                  {isAdmin && (
+                  {hasActions && (
                     <th scope="col" className={th}>
                       {t("ref.colActions")}
                     </th>
@@ -294,6 +312,11 @@ export function ReferencePage() {
                     <td className={td}>
                       <CheckedStatus verified={p.verified} />
                     </td>
+                    {isExpert && (
+                      <td className={td}>
+                        <CheckButton table="preparations" id={p.id} verified={p.verified} name={p.preparation_type} />
+                      </td>
+                    )}
                     {isAdmin && (
                       <td className={td}>
                         <div className="flex gap-2">
@@ -347,7 +370,7 @@ export function ReferencePage() {
                       {t(`ref.${k}`)}
                     </th>
                   ))}
-                  {isAdmin && (
+                  {hasActions && (
                     <th scope="col" className={th}>
                       {t("ref.colActions")}
                     </th>
@@ -365,6 +388,11 @@ export function ReferencePage() {
                     <td className={td}>
                       <CheckedStatus verified={n.verified} />
                     </td>
+                    {isExpert && (
+                      <td className={td}>
+                        <CheckButton table="plant-names" id={n.id} verified={n.verified} name={n.name} />
+                      </td>
+                    )}
                     {isAdmin && (
                       <td className={td}>
                         <div className="flex gap-2">

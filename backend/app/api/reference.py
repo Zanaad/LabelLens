@@ -1,5 +1,6 @@
-# Reference table: every signed-in user can read it; admins edit it. Each preparation change is
-# kept in reference_history. Never invent monograph content: unchecked rows need TODO(expert).
+# Reference table: every signed-in user can read it; admins edit it and experts mark rows as
+# checked (an admin's edit to a checked row unchecks it). Each preparation change is kept in
+# reference_history. Never invent monograph content: unchecked rows need TODO(expert).
 
 import uuid
 from typing import Any
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_roles
 from app.api.schemas import (
+    CheckIn,
     PlantNameIn,
     PlantNameOut,
     PreparationIn,
@@ -25,7 +27,13 @@ from app.services.audit import audit
 router = APIRouter(prefix="/api/reference", tags=["reference"])
 
 admin_only = require_roles(Role.admin)
+expert_only = require_roles(Role.expert)
 PREP_FIELDS = list(PreparationIn.model_fields)
+
+
+def _no_check_by_admin(body: PreparationIn | PlantNameIn) -> None:
+    if body.verified:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="forbidden")
 
 
 def _prep(db: Session, prep_id: uuid.UUID) -> ReferencePreparation:
@@ -68,6 +76,7 @@ def get_reference(
 def create_preparation(
     body: PreparationIn, db: Session = Depends(get_db), admin: User = Depends(admin_only)
 ) -> ReferencePreparation:
+    _no_check_by_admin(body)
     prep = ReferencePreparation(**body.model_dump(), updated_by_id=admin.id)
     db.add(prep)
     db.flush()
@@ -83,9 +92,12 @@ def update_preparation(
     db: Session = Depends(get_db),
     admin: User = Depends(admin_only),
 ) -> ReferencePreparation:
+    _no_check_by_admin(body)
     prep = _prep(db, prep_id)
     before = _snapshot(prep)
-    if before != body.model_dump():
+    content = {k: v for k, v in before.items() if k != "verified"}
+    # Changed content needs a new check, so the row goes back to unchecked (body.verified is False).
+    if content != body.model_dump(exclude={"verified"}):
         for k, v in body.model_dump().items():
             setattr(prep, k, v)
         prep.updated_by_id = admin.id
@@ -105,9 +117,28 @@ def delete_preparation(
     return Response(status_code=204)
 
 
+@router.put("/preparations/{prep_id}/check", response_model=PreparationOut)
+def check_preparation(
+    prep_id: uuid.UUID,
+    body: CheckIn,
+    db: Session = Depends(get_db),
+    expert: User = Depends(expert_only),
+) -> ReferencePreparation:
+    prep = _prep(db, prep_id)
+    if prep.verified != body.verified:
+        before = {"verified": prep.verified}
+        prep.verified, prep.updated_by_id = body.verified, expert.id
+        action = "check" if body.verified else "uncheck"
+        _record(db, expert, action, prep.id, before, {"verified": body.verified})
+        db.commit()
+    return prep
+
+
 @router.get("/preparations/{prep_id}/history", response_model=list[ReferenceChange])
 def preparation_history(
-    prep_id: uuid.UUID, db: Session = Depends(get_db), _: User = Depends(admin_only)
+    prep_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(Role.admin, Role.expert)),
 ) -> list[ReferenceChange]:
     rows = db.execute(
         select(ReferenceHistory, User.full_name)
@@ -137,6 +168,7 @@ def _save_name(db: Session, name: PlantName, admin: User, action: str) -> PlantN
 def create_plant_name(
     body: PlantNameIn, db: Session = Depends(get_db), admin: User = Depends(admin_only)
 ) -> PlantName:
+    _no_check_by_admin(body)
     name = PlantName(id=uuid.uuid4(), **body.model_dump())
     db.add(name)
     return _save_name(db, name, admin, "create")
@@ -149,21 +181,42 @@ def update_plant_name(
     db: Session = Depends(get_db),
     admin: User = Depends(admin_only),
 ) -> PlantName:
-    name = db.get(PlantName, name_id)
-    if name is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    _no_check_by_admin(body)
+    name = _name(db, name_id)
+    content = {k: getattr(name, k) for k in PlantNameIn.model_fields if k != "verified"}
+    if content == body.model_dump(exclude={"verified"}):
+        return name  # nothing changed, so a check stays valid
     for k, v in body.model_dump().items():
         setattr(name, k, v)
     return _save_name(db, name, admin, "update")
+
+
+@router.put("/plant-names/{name_id}/check", response_model=PlantNameOut)
+def check_plant_name(
+    name_id: uuid.UUID,
+    body: CheckIn,
+    db: Session = Depends(get_db),
+    expert: User = Depends(expert_only),
+) -> PlantName:
+    name = _name(db, name_id)
+    if name.verified == body.verified:
+        return name
+    name.verified = body.verified
+    return _save_name(db, name, expert, "check" if body.verified else "uncheck")
+
+
+def _name(db: Session, name_id: uuid.UUID) -> PlantName:
+    name = db.get(PlantName, name_id)
+    if name is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    return name
 
 
 @router.delete("/plant-names/{name_id}", status_code=204)
 def delete_plant_name(
     name_id: uuid.UUID, db: Session = Depends(get_db), admin: User = Depends(admin_only)
 ) -> Response:
-    name = db.get(PlantName, name_id)
-    if name is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="not_found")
+    name = _name(db, name_id)
     audit(db, "plant_name.delete", user_id=admin.id, entity_type="plant_name", entity_id=name.id)
     db.delete(name)
     db.commit()

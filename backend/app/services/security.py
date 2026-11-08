@@ -28,13 +28,13 @@ def verify_password(password_hash: str | None, password: str) -> bool:
         return False
 
 
-def create_session_token(user_id: uuid.UUID) -> str:
+def create_session_token(user_id: uuid.UUID, ttl: timedelta | None = None) -> str:
     s = get_settings()
     now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "iat": now,
-        "exp": now + timedelta(minutes=s.jwt_ttl_minutes),
+        "exp": now + (ttl or timedelta(minutes=s.jwt_ttl_minutes)),
         "typ": "session",
     }
     return jwt.encode(payload, s.jwt_secret, algorithm=s.jwt_algorithm)

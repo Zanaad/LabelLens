@@ -1,3 +1,4 @@
+import re
 from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
@@ -23,6 +24,11 @@ class FieldStatus(StrEnum):
     unreadable = "unreadable"
 
 
+def _squash(text: str) -> str:
+    # Ignores case, spacing and punctuation, so "60 % V/V" matches "60% (V/V)".
+    return re.sub(r"[\W_]+", "", text.casefold())
+
+
 class ExtractedField(BaseModel):
     value: str | None = Field(description="Text exactly as printed; null unless status is stated")
     status: FieldStatus
@@ -36,6 +42,9 @@ class ExtractedField(BaseModel):
                 raise ValueError("stated field needs a label value")
             if not self.evidence or not self.evidence.strip():
                 raise ValueError("stated field needs label evidence")
+            squashed = _squash(self.value)
+            if not squashed or squashed not in _squash(self.evidence):
+                raise ValueError("stated value must appear in its label evidence")
         elif self.value is not None or self.evidence is not None:
             raise ValueError("missing or unreadable field must have null value and evidence")
         return self

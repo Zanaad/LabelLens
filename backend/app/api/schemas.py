@@ -22,6 +22,11 @@ class UserOut(BaseModel):
     organisation: str | None
     role: Role
     onboarded_at: datetime | None
+    email_verified: bool
+
+
+class TokenIn(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
 
 
 class RegisterIn(BaseModel):
@@ -36,6 +41,7 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str = Field(max_length=1024)
+    remember_me: bool = False
 
 
 class InvitationCreate(BaseModel):
@@ -124,6 +130,7 @@ class ScanListItem(BaseModel):
     plant: str | None
     verdict: VerdictCode | None  # latest check; None if not checked yet
     missing: int | None
+    review: Rating | None = None  # most notable reviewer rating of the latest check
 
 
 class CorrectionOut(BaseModel):
@@ -181,6 +188,14 @@ class SharedView(BaseModel):
     expires_at: datetime
 
 
+class ReviewOpinion(BaseModel):
+    """A reviewer's rating as the pharmacist sees it: no reviewer name or id."""
+
+    rating: Rating
+    correct_verdict: VerdictCode | None
+    reason: str | None
+
+
 class VerdictOut(BaseModel):
     # Shapes come from app.rules.engine (Item, Comparison, Reference); the UI words them.
     id: uuid.UUID
@@ -192,6 +207,13 @@ class VerdictOut(BaseModel):
     comparisons: list[dict[str, Any]]
     missing: list[dict[str, Any]]
     sources: list[dict[str, Any]]
+    reviews: list[ReviewOpinion] = []  # only filled for the pharmacist who owns the scan
+    review_requested_at: datetime | None = None
+    review_question: str | None = None
+
+
+class ReviewRequestIn(BaseModel):
+    question: str | None = Field(default=None, max_length=1000)
 
 
 # Password reset
@@ -243,6 +265,7 @@ class ReviewItem(BaseModel):
     checked_at: datetime
     my_rating: Rating | None
     ratings: int  # by all reviewers
+    requested: bool  # the pharmacist asked an expert to look at it
 
 
 class RatingIn(BaseModel):
@@ -354,6 +377,10 @@ class PlantNameOut(PlantNameFields):
 class ReferenceOut(BaseModel):
     preparations: list[PreparationOut]
     plant_names: list[PlantNameOut]
+
+
+class CheckIn(BaseModel):
+    verified: bool
 
 
 class ReferenceChange(BaseModel):

@@ -62,6 +62,13 @@ export type Source = {
   verified: boolean;
 };
 
+// A reviewer's rating as the pharmacist sees it (no name); advice only, the verdict never changes.
+export type ReviewOpinion = {
+  rating: "agree" | "disagree" | "unsure";
+  correct_verdict: VerdictCode | null;
+  reason: string | null;
+};
+
 export type Verdict = {
   id: string;
   created_at: string;
@@ -72,6 +79,9 @@ export type Verdict = {
   comparisons: Comparison[];
   missing: ResultItem[];
   sources: Source[];
+  reviews: ReviewOpinion[];
+  review_requested_at: string | null;
+  review_question: string | null;
 };
 
 export type ScanListItem = {
@@ -82,6 +92,7 @@ export type ScanListItem = {
   plant: string | null;
   verdict: VerdictCode | null;
   missing: number | null;
+  review: ReviewOpinion["rating"] | null;
 };
 
 export type Share = {
@@ -221,6 +232,19 @@ export function useVerdict(id: string) {
 
 export function useVerdictHistory(id: string) {
   return useQuery({ queryKey: verdictsKey(id), queryFn: () => api<Verdict[]>(`/api/scans/${id}/verdicts`) });
+}
+
+// Asks an expert to look at the latest result; the expert queue lists these first.
+export function useAskExpert(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (question: string | null) =>
+      api<Verdict>(`/api/scans/${id}/review-request`, { method: "POST", json: { question } }),
+    onSuccess: (verdict) => {
+      qc.setQueryData(verdictKey(id), verdict);
+      void qc.invalidateQueries({ queryKey: historyKey(id) });
+    },
+  });
 }
 
 // Compares the reviewed fields with the reference table and stores the verdict.

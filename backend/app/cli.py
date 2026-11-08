@@ -1,5 +1,7 @@
-# Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), import-reference
-# (upsert from JSON), run-validation (same as Validation -> Run) and fetch-readings (live API).
+# Admin commands: create-admin (password from ADMIN_PASSWORD or prompted), seed-admin (runs at
+# container start), seed-reference (same, loads the reference file if the table is empty),
+# import-reference (upsert from JSON), run-validation (same as Validation -> Run) and
+# fetch-readings (live API).
 
 import argparse
 import getpass
@@ -18,7 +20,6 @@ from app.config import get_settings
 from app.db import get_engine
 from app.extraction.providers import (
     PLAIN_PROMPT_VERSION,
-    ClaudeProvider,
     ExtractionError,
     GroqProvider,
     cache_key,
@@ -98,12 +99,38 @@ def create_admin(email: str, name: str, password: str) -> int:
             role=Role.admin,
             consent_privacy_at=datetime.now(UTC),
             consent_terms_at=datetime.now(UTC),
+            email_verified_at=datetime.now(UTC),
         )
         db.add(user)
         db.flush()
         audit(db, "user.create_admin_cli", user_id=user.id, entity_type="user", entity_id=user.id)
         db.commit()
     print(f"Admin {email} created.")
+    return 0
+
+
+def seed_admin() -> int:
+    """First start: creates the admin from ADMIN_EMAIL/ADMIN_PASSWORD if no admin exists yet."""
+    email, password = os.environ.get("ADMIN_EMAIL"), os.environ.get("ADMIN_PASSWORD")
+    if not email or not password:
+        return 0
+    with Session(get_engine()) as db:
+        if db.scalar(select(User.id).where(User.role == Role.admin).limit(1)):
+            return 0
+    return create_admin(email, os.environ.get("ADMIN_NAME") or "Administrator", password)
+
+
+def seed_reference(path: Path) -> int:
+    """First start: loads the reference file only while the reference table is empty."""
+    with Session(get_engine()) as db:
+        if db.scalar(select(ReferencePreparation.id).limit(1)) is not None:
+            return 0
+        try:
+            data = ReferenceFile.model_validate_json(path.read_bytes())
+        except (OSError, ValidationError) as e:
+            print(f"Could not seed the reference table from {path}:\n{e}")
+            return 1
+        print(f"Seeded the reference table: {import_reference(db, data)} rows.")
     return 0
 
 
@@ -137,14 +164,10 @@ def validate(include_drafts: bool, out: Path | None) -> int:
 def fetch_readings() -> int:
     """Fetches unsaved readings and baselines with the configured live provider."""
     s = get_settings()
-    provider: GroqProvider | ClaudeProvider
-    if s.extraction_provider == "groq":
-        provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
-    elif s.extraction_provider == "claude":
-        provider = ClaudeProvider(s.extraction_model, s.extraction_api_key, s.extraction_cache_dir)
-    else:
-        print("Set EXTRACTION_PROVIDER to groq or claude before fetching readings.")
+    if s.extraction_provider != "groq":
+        print("Set EXTRACTION_PROVIDER to groq before fetching readings.")
         return 1
+    provider = GroqProvider(s.groq_model, s.groq_api_key, s.extraction_cache_dir)
     storage = get_storage()
     fetched = 0
     with Session(get_engine()) as db:
@@ -176,11 +199,17 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--include-drafts", action="store_true")
     v.add_argument("--out", type=Path, help="also write the metrics as JSON to this folder")
     sub.add_parser("fetch-readings")
+    sub.add_parser("seed-admin")
+    sub.add_parser("seed-reference").add_argument("path", type=Path)
     args = parser.parse_args(argv)
     if args.cmd == "run-validation":
         return validate(args.include_drafts, args.out)
     if args.cmd == "fetch-readings":
         return fetch_readings()
+    if args.cmd == "seed-admin":
+        return seed_admin()
+    if args.cmd == "seed-reference":
+        return seed_reference(args.path)
     if args.cmd == "create-admin":
         password = os.environ.get("ADMIN_PASSWORD") or getpass.getpass("Password: ")
         return create_admin(args.email, args.name, password)
