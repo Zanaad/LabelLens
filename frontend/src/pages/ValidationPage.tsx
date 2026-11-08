@@ -114,47 +114,29 @@ function Tile({ label, rate, extra }: { label: string; rate: Rate; extra?: strin
 
 const verdictLabel = (v: VerdictCode) => t(VERDICT_OPTIONS.find(([code]) => code === v)![1]);
 
-// Rows: expected verdict. Columns: what LabelLens said. One-hue ramp by count; text stays in text tokens.
-function ConfusionMatrix({ confusion }: { confusion: Confusion }) {
+// Per verdict: how often the expert gave it, how often LabelLens did, and how often both did.
+function VerdictTally({ confusion }: { confusion: Confusion }) {
   const codes = VERDICT_OPTIONS.map(([v]) => v);
-  const max = Math.max(1, ...codes.flatMap((e) => codes.map((p) => confusion[e]?.[p] ?? 0)));
-  const shade = (n: number) => {
-    if (n === 0) return "bg-surface text-muted";
-    const step = Math.ceil((n / max) * 4);
-    return ["bg-shade-1 text-text", "bg-shade-2 text-text", "bg-shade-3 text-on-accent", "bg-shade-4 text-on-accent"][step - 1];
-  };
+  const count = (e: VerdictCode, p: VerdictCode) => confusion[e]?.[p] ?? 0;
+  const sum = (f: (c: VerdictCode) => number) => codes.reduce((n, c) => n + f(c), 0);
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[720px] border-separate border-spacing-0.5 text-body-sm">
+      <table className="w-full min-w-[520px] border-collapse text-body-sm">
         <thead>
           <tr>
-            <th scope="col" className="px-2 py-1 text-left text-sm font-semibold text-muted">
-              {t("val.expectedAxis")} ↓ / {t("val.predictedAxis")} →
-            </th>
-            {codes.map((p) => (
-              <th key={p} scope="col" className="w-[15%] px-2 py-1 text-left text-sm font-semibold">
-                {verdictLabel(p)}
-              </th>
-            ))}
+            <th scope="col" className={th}>{t("val.colVerdict")}</th>
+            <th scope="col" className={th}>{t("val.colExpertSaid")}</th>
+            <th scope="col" className={th}>{t("val.colLabelLensSaid")}</th>
+            <th scope="col" className={th}>{t("val.colBothSaid")}</th>
           </tr>
         </thead>
         <tbody>
-          {codes.map((e) => (
-            <tr key={e}>
-              <th scope="row" className="px-2 py-1 text-left text-sm font-semibold">
-                {verdictLabel(e)}
-              </th>
-              {codes.map((p) => {
-                const n = confusion[e]?.[p] ?? 0;
-                return (
-                  <td
-                    key={p}
-                    className={`h-11 rounded-inner px-2 text-center font-mono ${shade(n)} ${e === p ? "outline-2 -outline-offset-2 outline-text" : ""}`}
-                  >
-                    {n}
-                  </td>
-                );
-              })}
+          {codes.map((v) => (
+            <tr key={v}>
+              <th scope="row" className={`${td} font-semibold`}>{verdictLabel(v)}</th>
+              <td className={`${td} font-mono`}>{sum((p) => count(v, p))}</td>
+              <td className={`${td} font-mono`}>{sum((e) => count(e, v))}</td>
+              <td className={`${td} font-mono`}>{count(v, v)}</td>
             </tr>
           ))}
         </tbody>
@@ -289,7 +271,7 @@ function RunView({ run }: { run: Run }) {
             ))}
           </div>
         </div>
-        <ConfusionMatrix confusion={m.verdicts[mode].confusion} />
+        <VerdictTally confusion={m.verdicts[mode].confusion} />
       </section>
 
       <section aria-labelledby="failures-title" className={card}>

@@ -52,7 +52,7 @@ def _norm(value: str | None) -> str | None:
     if not value:
         return None
     value = value.casefold().replace("–", "-").replace("—", "-").replace("’", "'")
-    return " ".join(value.split()) or None
+    return " ".join(value.split()).rstrip(".,;: ") or None  # a closing full stop isn't a difference
 
 
 def field_outcome(truth: str | None, read: str | None) -> str:
