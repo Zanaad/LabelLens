@@ -119,7 +119,7 @@ How each role should behave if LabelLens went to production, against what the ap
 | Review queue | Escalated cases first, plus a random sample, not every scan | Escalated cases first, then a stable random sample of the rest (`REVIEW_SAMPLE_PERCENT`, default 10) | ✅ |
 | Rate without seeing the pharmacist or other reviewers | Yes | Yes | ✅ |
 | Add, edit, check and delete reference rows | Yes, every value comes from a monograph | Yes, experts only; every change is kept in the row's history | ✅ |
-| Build validation labels: photo, fields, expected verdict, Final | Yes, they are the answer key | Yes, experts only, on Validation labels; who set the expected verdict and when are stored | ✅ |
+| Build validation labels: photo, fields, expected verdict, Final | Yes, they are the answer key | Yes, experts only, on the Validation page's labels tab; who set the expected verdict and when are stored | ✅ |
 | See validation results | Read-only | Read-only | ✅ |
 
 **Admin** (runs the system)

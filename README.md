@@ -146,9 +146,9 @@ flowchart TB
 
 Validation measures how often LabelLens is right on labels whose correct answers are known.
 
-1. **Add labels:** as an expert, open **Validation labels**, upload a label photo or paste its
-   text, check every field against the label, set the expected verdict and mark the label
-   **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
+1. **Add labels:** as an expert, open **Validation → Validation labels**, upload a label photo or
+   paste its text, check every field against the label, set the expected verdict and mark the
+   label **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
 2. **Run:** as an admin, open **Validation** and click **Run validation**, or from the command
    line:
 

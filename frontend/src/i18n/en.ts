@@ -57,7 +57,6 @@ export const en = {
   "nav.admin": "Admin",
   "nav.reference": "Reference table",
   "nav.validation": "Validation",
-  "nav.validationLabels": "Validation labels",
   "nav.methods": "Methods and limitations",
 
   "account.menuFor": "Account menu for {name}",
@@ -446,8 +445,11 @@ export const en = {
 
   "val.eyebrow": "Validation",
   "val.title": "How often LabelLens is right",
+  "val.tabs": "Validation sections",
+  "val.tabRuns": "Validation runs",
+  "val.tabLabels": "Validation labels",
   "val.intro":
-    "Each run checks LabelLens against validation labels whose correct answers were set by the team. Numbers used in the pitch come only from these runs.",
+    "Each run checks LabelLens against validation labels whose correct answers were set by experts. Numbers used in the pitch come only from these runs.",
   "val.run": "Run validation",
   "val.running": "Running…",
   "val.includeDrafts": "Include draft and in-review labels (for trying things out, not for the pitch)",

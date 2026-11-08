@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   useAnnotation,
   useAnnotations,
@@ -9,10 +9,11 @@ import {
   type Annotation,
   type AnnotationStatus,
 } from "../api/admin";
+import { useMe } from "../api/auth";
 import { errorCode } from "../api/client";
 import { FIELD_KEYS, type FieldKey, type VerdictCode } from "../api/scans";
 import { ArrowLeftIcon, UploadIcon } from "../components/icons";
-import { Button, ButtonLink, Notice, inputClass } from "../components/ui";
+import { Button, ButtonLink, Eyebrow, Notice, inputClass } from "../components/ui";
 import { VERDICT_OPTIONS, VerdictChip } from "../components/verdict";
 import { formatDateTime, t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
@@ -20,13 +21,49 @@ import { NotFoundPage } from "./StatusPages";
 const panel = "flex min-w-0 flex-col gap-4 rounded-control border border-border bg-surface"; // tables run edge to edge
 const card = `${panel} p-6`;
 const STATUSES: AnnotationStatus[] = ["draft", "in_review", "final"];
+const LABELS = "/validation/labels";
+
+// Validation page title, plus Runs / Labels tabs for experts (the only role that sees labels).
+// Lives here, not in ValidationPage, so the label pages don't pull in its chart library.
+export function ValidationHeader() {
+  const { pathname } = useLocation();
+  const isExpert = useMe().data?.role === "expert";
+  const tabs = [
+    { to: "/validation", label: t("val.tabRuns"), active: pathname === "/validation" },
+    { to: LABELS, label: t("val.tabLabels"), active: pathname.startsWith(LABELS) },
+  ];
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Eyebrow>{t("val.eyebrow")}</Eyebrow>
+        <h1 className="m-0 text-page font-semibold">{t("val.title")}</h1>
+      </div>
+      {isExpert && (
+        <nav aria-label={t("val.tabs")} className="flex flex-wrap gap-1 border-b border-border">
+          {tabs.map((tab) => (
+            <Link
+              key={tab.to}
+              to={tab.to}
+              aria-current={tab.active ? "page" : undefined}
+              className={`-mb-px inline-flex min-h-control items-center border-b-2 px-3 font-medium no-underline ${
+                tab.active ? "border-accent text-text" : "border-transparent text-muted hover:text-text"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+      )}
+    </>
+  );
+}
 
 function AddLabel() {
   const navigate = useNavigate();
   const create = useCreateAnnotation();
   const fileInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
-  const open = (a: Annotation) => navigate(`/labels/${a.id}`);
+  const open = (a: Annotation) => navigate(`${LABELS}/${a.id}`);
 
   const onText = (e: FormEvent) => {
     e.preventDefault();
@@ -104,7 +141,7 @@ function LabelsTable() {
               {list.data?.map((a) => (
                 <tr key={a.id} className="hover:bg-surface-2">
                   <th scope="row" className="border-b border-border py-2.5 pr-3 pl-6 text-left font-semibold">
-                    <Link to={`/labels/${a.id}`} className="text-text">
+                    <Link to={`${LABELS}/${a.id}`} className="text-text">
                       {a.title}
                     </Link>
                   </th>
@@ -131,7 +168,7 @@ function LabelsTable() {
 export function LabelsPage() {
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="m-0 text-page font-semibold">{t("nav.validationLabels")}</h1>
+      <ValidationHeader />
       <p className="m-0 max-w-[75ch] text-muted">{t("annot.intro")}</p>
       <div className="flex flex-wrap items-start gap-6">
         <LabelsTable />
@@ -186,7 +223,7 @@ function Editor({ annotation }: { annotation: Annotation }) {
     });
   };
   const del = () => {
-    if (window.confirm(t("annot.deleteConfirm"))) remove.mutate(undefined, { onSuccess: () => navigate("/labels") });
+    if (window.confirm(t("annot.deleteConfirm"))) remove.mutate(undefined, { onSuccess: () => navigate(LABELS) });
   };
 
   return (
@@ -316,7 +353,8 @@ export function LabelEditorPage() {
   if (annotation.isError) return <NotFoundPage />;
   return (
     <div className="flex flex-col gap-6">
-      <ButtonLink to="/labels" variant="secondary" className="self-start">
+      <ValidationHeader />
+      <ButtonLink to={LABELS} variant="secondary" className="self-start">
         <ArrowLeftIcon />
         {t("annot.back")}
       </ButtonLink>

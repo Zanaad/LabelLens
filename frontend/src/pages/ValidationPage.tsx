@@ -4,9 +4,10 @@ import { useMe } from "../api/auth";
 import { errorCode } from "../api/client";
 import { FIELD_KEYS, type FieldKey, type VerdictCode } from "../api/scans";
 import { useRun, useRuns, useStartRun, type Confusion, type Metrics, type Rate, type Run } from "../api/validation";
-import { Button, Checkbox, Eyebrow, Notice } from "../components/ui";
+import { Button, Checkbox, Notice } from "../components/ui";
 import { VERDICT_OPTIONS } from "../components/verdict";
 import { formatDateTime, t, type MessageKey } from "../i18n";
+import { ValidationHeader } from "./AnnotationsPage";
 
 const card = "flex min-w-0 flex-col gap-4 rounded-control border border-border bg-surface p-6";
 const th = "border-b border-border px-3 py-2 text-left font-semibold first:pl-0";
@@ -335,12 +336,9 @@ export function ValidationPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <ValidationHeader />
       <section className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex max-w-[75ch] flex-col gap-1.5">
-          <Eyebrow>{t("val.eyebrow")}</Eyebrow>
-          <h1 className="m-0 text-page font-semibold">{t("val.title")}</h1>
-          <p className="m-0 text-muted">{t("val.intro")}</p>
-        </div>
+        <p className="m-0 max-w-[75ch] text-muted">{t("val.intro")}</p>
         {isAdmin && (
           <div className="flex flex-col items-start gap-2">
             <Button disabled={start.isPending} onClick={() => start.mutate(includeDrafts, { onSuccess: (r) => setSelected(r.id) })}>
