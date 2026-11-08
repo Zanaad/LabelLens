@@ -7,7 +7,7 @@ import { ButtonLink, Eyebrow, inputClass } from "../components/ui";
 import { VERDICT, VerdictChip } from "../components/verdict";
 import { formatDate, t, type MessageKey } from "../i18n";
 
-type SortKey = "name" | "herb" | "date" | "verdict" | "missing";
+type SortKey = "name" | "herb" | "date" | "verdict" | "review" | "missing";
 type Group = "matches" | "partly_matches" | "cannot_say" | "not_covered";
 
 const GROUPS: Group[] = ["matches", "partly_matches", "cannot_say", "not_covered"];
@@ -18,6 +18,8 @@ const BAR: Record<Group, string> = {
   not_covered: "bg-border-2",
 };
 const DAY_MS = 86_400_000;
+// Sort order for the Expert review column: the most notable rating first, unreviewed last.
+const REVIEW_ORDER = ["disagree", "unsure", "agree"] as const;
 
 const group = (v: VerdictCode): Group => (v === "differs" ? "cannot_say" : v);
 const nameOf = (s: ScanListItem) => s.product_name ?? s.plant ?? t("result.unnamed");
@@ -37,7 +39,11 @@ const sortValue = (s: ScanListItem, key: SortKey): string | number =>
           ? s.verdict
             ? GROUPS.indexOf(group(s.verdict))
             : GROUPS.length
-          : (s.missing ?? -1);
+          : key === "review"
+            ? s.review
+              ? REVIEW_ORDER.indexOf(s.review)
+              : REVIEW_ORDER.length
+            : (s.missing ?? -1);
 
 const tile = "flex min-w-0 flex-col gap-1 rounded-control border border-border bg-surface p-5";
 const iconButton =
@@ -129,6 +135,7 @@ function ScanTable({ scans, onShare }: { scans: ScanListItem[]; onShare: (s: Sca
     ["herb", "myScans.colHerb"],
     ["date", "myScans.colDate"],
     ["verdict", "myScans.verdict"],
+    ["review", "myScans.colReview"],
     ["missing", "myScans.colMissing"],
   ];
   const field = "flex flex-col gap-1.5 text-sm font-semibold";
@@ -193,7 +200,7 @@ function ScanTable({ scans, onShare }: { scans: ScanListItem[]; onShare: (s: Sca
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] border-collapse text-body-sm">
+        <table className="w-full min-w-[960px] border-collapse text-body-sm">
           <caption className="sr-only">{t("myScans.caption")}</caption>
           <thead>
             <tr className="bg-surface-2">
@@ -240,17 +247,26 @@ function ScanTable({ scans, onShare }: { scans: ScanListItem[]; onShare: (s: Sca
                   <td className="border-b border-border px-3 py-2.5 font-mono text-sm whitespace-nowrap">{formatDate(s.created_at)}</td>
                   <td className="border-b border-border px-3 py-2.5">
                     {s.verdict ? (
+                      <VerdictChip verdict={s.verdict} />
+                    ) : (
+                      <span className="text-muted">{t(s.status === "out_of_scope" ? "myScans.outOfScope" : "myScans.notChecked")}</span>
+                    )}
+                  </td>
+                  <td className="border-b border-border px-3 py-2.5">
+                    {s.review ? (
                       <>
-                        <VerdictChip verdict={s.verdict} />
-                        {s.review && (
-                          <span className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-                            <ReviewIcon size={16} />
-                            {t(`myScans.review.${s.review}` as MessageKey)}
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                          <ReviewIcon size={16} />
+                          {t(`myScans.review.${s.review}`)}
+                        </span>
+                        {s.review_verdict && (
+                          <span className="block text-sm text-muted">
+                            {t("myScans.reviewSuggests", { verdict: t(VERDICT[s.review_verdict].short) })}
                           </span>
                         )}
                       </>
                     ) : (
-                      <span className="text-muted">{t(s.status === "out_of_scope" ? "myScans.outOfScope" : "myScans.notChecked")}</span>
+                      <span className="text-muted">{t("myScans.notReviewed")}</span>
                     )}
                   </td>
                   <td className="border-b border-border px-3 py-2.5">

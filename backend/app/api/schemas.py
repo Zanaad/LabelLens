@@ -131,6 +131,7 @@ class ScanListItem(BaseModel):
     verdict: VerdictCode | None  # latest check; None if not checked yet
     missing: int | None
     review: Rating | None = None  # most notable reviewer rating of the latest check
+    review_verdict: VerdictCode | None = None  # the verdict that reviewer suggests, if any
 
 
 class CorrectionOut(BaseModel):

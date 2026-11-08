@@ -14,7 +14,7 @@ the herbal preparations studied in EU monographs, and gives one of three answers
 It only checks what is printed on the label, not what is inside the product. It never says a
 product is "safe", never gives dosing advice, and never treats missing information as good news.
 
-## Where we are (7 Nov 2026)
+## Where we are (8 Nov 2026)
 
 | Step | What it includes | Status |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ product is "safe", never gives dosing advice, and never treats missing informati
 | 3 | History, patient link, and printable one-page summary | **Done** |
 | 4 | Expert review queue, admin tools, validation workflow, and email password reset | **Done** |
 | 5 | Source-linked EMA draft rows and live label reading | **Done for the local prototype** |
-| 6 | Real-label validation, demo polish, and deployment | **In progress** |
+| 6 | Real-label validation, demo polish, and deployment | **Deployed** (EC2, 8 Nov); real-label validation still open |
 
 Step 5 is complete as an implementation milestone: the local app can read new photos and pasted
 text through Groq, let a pharmacist correct fields, and compare them with source-linked EMA draft
@@ -78,20 +78,22 @@ files are excluded from Git.
    chamomile packages: the Ginkgo result could not resolve the missing DER/solvent, and one
    chamomile reading mistook `25g` for a preparation. A real image and a successful API call are
    not accuracy measurements. Keep fictional examples separate from this test set.
-3. **Run validation with honest ground truth.** A team member can transcribe clearly printed
-   fields and have a second member cross-check them. For verdict accuracy, record who assigned
+3. **Run validation with honest ground truth.** Labels are built in the app by expert accounts;
+   for the hackathon, team members with expert accounts transcribe clearly printed fields and a
+   second member cross-checks them. For verdict accuracy, record who assigned
    expected answers and their basis; report counts and uncertainty. If there are too few checked
    labels, show examples and limitations instead of an accuracy percentage. Expert review is an
    optional later improvement, not a dependency for the prototype.
 4. **Improve the real-photo path.** Test small-print labels and measure failures after the retry
    handling and the new evidence check (done 7 Nov). A successful API call alone does not
    establish reading accuracy.
-5. **Demo and deployment.** Deployment (HTTPS, secure production configuration, backups, smoke
-   test) is handled by a teammate; the current Compose setup is for local use. Still ours:
-   decide whether to keep fictional example labels clearly marked in the app, and record the EMA
-   reuse terms before publishing reference data in a public repository.
-6. **Wording reviews.** The About and Settings text (`TODO(team)`) and the patient wording
-   (`TODO(expert)`, ideally a pharmacist) still need a read-through.
+5. **Demo and deployment.** Deployed by Alketa on AWS EC2 over HTTPS:
+   https://13-60-219-35.sslip.io (8 Nov). Backups are not confirmed yet. Still ours: decide
+   whether to keep fictional example labels clearly marked in the app, and record the EMA reuse
+   terms before publishing reference data in a public repository.
+6. **Wording reviews.** The patient wording (`TODO(expert)` in `PatientPage.tsx`, ideally a
+   pharmacist) and how "differs" is shown to pharmacists (`TODO(expert)` in `verdict.tsx`) still
+   need a decision.
 
 ### Roles: production target vs today (8 Nov)
 
@@ -143,7 +145,7 @@ How each role should behave if LabelLens went to production, against what the ap
 | Two-step sign-in (MFA) for admins and experts | Yes | No | ❌ |
 | Data retention: delete old scans and photos automatically | A set policy | Manual deletion only | ⚠️ |
 | Rate limits | Shared across restarts and servers | In memory, reset on restart | ⚠️ |
-| HTTPS, backups, deployment | Yes | Handled by a teammate | ⚠️ |
+| HTTPS, backups, deployment | Yes | Deployed on AWS EC2 over HTTPS; backups not confirmed | ⚠️ |
 
 ### Possible later features
 

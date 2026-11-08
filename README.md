@@ -26,6 +26,9 @@ treats missing information as good news.
 Built for EthnoHack 2026, Track 4 (digital health and phytotherapy). Status: working prototype.
 The reference data is a set of source-linked draft rows that have not been verified by an expert.
 
+**Live demo:** https://13-60-219-35.sslip.io (hosted on AWS EC2). Pharmacists can register there;
+expert and admin accounts are by invitation.
+
 ## Features
 
 - **Scan:** upload a label photo (JPG or PNG) or paste label text.
@@ -50,6 +53,9 @@ The reference data is a set of source-linked draft rows that have not been verif
 
 ## Installation / Setup
 
+The steps below run LabelLens on your own machine. The live demo above is deployed on AWS EC2 and
+served over HTTPS.
+
 Requirements: Docker with Compose v2.
 
 ```bash
@@ -57,19 +63,24 @@ cp .env.example .env   # then fill in the empty values
 docker compose up --build
 ```
 
-Generate each secret with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. The admin
-password needs at least 12 characters. The Groq key comes from
-[GroqCloud](https://console.groq.com/keys). For Gmail, `SMTP_PASSWORD` is an app password (Google
-Account → Security → 2-Step Verification → App passwords), not your normal one.
+The empty values in `.env`:
+
+| Value | What it is |
+| --- | --- |
+| `POSTGRES_PASSWORD` | Database password. Generate a random one (command below). |
+| `JWT_SECRET` | Signs sign-in sessions; at least 32 characters. Generate a random one (command below). |
+| `GROQ_API_KEY` | Key for the label reader, from [GroqCloud](https://console.groq.com/keys). |
+| `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | The email account that sends invitations, email confirmations and password resets. For Gmail, `SMTP_PASSWORD` is an app password (Google Account → Security → 2-Step Verification → App passwords), not your normal one. |
+| `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD` | The first admin account, created on the first start. The name is optional; the password needs at least 12 characters. |
+| `DATABASE_URL` | Leave empty: Docker Compose builds it from the `POSTGRES_*` values. |
+
+To generate a random value: `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
 - App: http://localhost:8080
 - API docs: http://localhost:8000/api/docs
 
 Pharmacists register themselves at `/register`. Expert reviewers and admins are invitation-only.
-The first admin is created automatically on the first start from `ADMIN_EMAIL`, `ADMIN_NAME`
-(optional) and `ADMIN_PASSWORD`; it does nothing if an admin already exists. Remove the password
-from `.env` afterwards. Sign in as that admin, open **Admin**, and create invitation links for
-reviewers and more admins.
+The first admin is created only if no admin exists yet. Sign in as that admin, open **Admin**, and invite reviewers and more admins by email.
 
 The reference table (studied preparations and plant names) is loaded from
 `data/reference/ema-draft.json` on the first start, when the table is empty. After that, experts
@@ -77,13 +88,11 @@ edit it in the app.
 
 ### Label reading modes
 
-With `EXTRACTION_PROVIDER=groq`, photos and pasted text are read by a Groq-hosted vision model
-(`GROQ_MODEL`) using the key in `.env`. Groq's free tier has rate limits, so read each demo label
-once beforehand.
-
-With `EXTRACTION_PROVIDER=cached` no API is called: LabelLens replays saved readings from
-`data/extraction_cache/`, and only the three example labels on the Scan page can be read (their
-readings are hand-written fixtures).
+- **Groq (`EXTRACTION_PROVIDER=groq`):** photos and pasted text are read by the Groq-hosted vision
+  model set in `GROQ_MODEL` (default `qwen/qwen3.8-27b`), using `GROQ_API_KEY`. The free tier has
+  rate limits, so read each demo label once beforehand.
+- **Cached (`EXTRACTION_PROVIDER=cached`):** for running without a Groq key. No API is called, and
+  only the three example labels on the Scan page can be read.
 
 Every real reading is saved to `data/extraction_cache/` (keyed by input, prompt version and
 model), so it can be replayed later and used for validation.
@@ -108,12 +117,15 @@ model), so it can be replayed later and used for validation.
    | Cannot say whether the evidence applies | two or more preparations are still possible, or the label contradicts them all |
    | Not yet covered | the plant is not in the reference table |
 
-   The rules engine returns codes only; all wording is in `frontend/src/i18n/en.ts`. Every check
-   is stored with the rules version, so old results stay as they were.
+   Every check is stored with the rules version, so old results stay as they were.
 
 The AI reads the label; it never chooses the verdict.
 
 ## Project flow
+
+### Pharmacist
+
+Checks a product's label and shares the result.
 
 ```mermaid
 flowchart LR
@@ -127,6 +139,41 @@ flowchart LR
     E --> I["Printable summary"]
     E --> J["Compare two products"]
     E --> K["Expert review"]
+```
+
+### Expert
+
+Reviews verdicts, keeps the reference table right and builds the validation labels.
+
+```mermaid
+flowchart LR
+    A["Accept the invitation email<br/>and sign in"] --> B["Review queue<br/>(asked-about results first,<br/>then a random sample)"]
+    B --> C["Label, fields and verdict<br/>(pharmacist stays anonymous)"]
+    C --> D["Agree, disagree<br/>(+ right verdict) or unsure"]
+    D --> E["Opinion shown to the pharmacist<br/>next to the verdict, never changes it"]
+    A --> F["Reference table: add or edit<br/>a preparation or plant name"]
+    F --> G["Compare every value<br/>with the EMA monograph"]
+    G --> H["Tick 'Checked against the source'<br/>(or leave a TODO note)"]
+    H --> I["Change kept in<br/>the row's history"]
+    A --> J["Validation labels:<br/>upload a photo or paste text"]
+    J --> K["AI pre-fills the fields"]
+    K --> L["Check every field<br/>against the label"]
+    L --> M["Set the expected verdict"]
+    M --> N["Mark the label Final"]
+```
+
+### Admin
+
+Runs the system: accounts and validation runs. Admins don't see pharmacists' scans.
+
+```mermaid
+flowchart LR
+    A["First admin created<br/>on the first start"] --> B["Invite experts and admins<br/>(link sent by email)"]
+    A --> C["Users: deactivate, reactivate,<br/>send a password reset"]
+    A --> D["Run validation over<br/>the experts' Final labels"]
+    D --> E["Replays saved readings<br/>(no API calls, no cost)"]
+    E --> F["Stored run: field and verdict<br/>accuracy, baselines, 95% ranges"]
+    F --> G["Results readable<br/>by every role"]
 ```
 
 ## Visualization
@@ -149,16 +196,9 @@ Validation measures how often LabelLens is right on labels whose correct answers
 1. **Add labels:** as an expert, open **Validation → Validation labels**, upload a label photo or
    paste its text, check every field against the label, set the expected verdict and mark the
    label **Final**. Experts build the answer key, so the team running the system doesn't grade itself.
-2. **Run:** as an admin, open **Validation** and click **Run validation**, or from the command
-   line:
-
-   ```bash
-   docker compose exec backend python -m app.cli run-validation --out /validation/results
-   ```
-
-   A run replays saved readings only (no API calls, no cost) and is stored, with a copy of the
-   exact answers it was scored against. `--out` also writes the metrics as JSON to
-   `validation/results/`.
+2. **Run:** as an admin, open **Validation** and click **Run validation**. A run replays saved
+   readings only (no API calls, no cost) and is stored, with a copy of the exact answers it was
+   scored against.
 3. **Read the results** on the Validation page: fields read correctly (including values the
    reader invented), verdict accuracy end to end and with the correct fields, two baselines (keyword
    matching, and a plain AI prompt without our rules), expert agreement, and every mistake. All
@@ -180,26 +220,6 @@ without a `TODO(expert)` note, and the result page says "sample reference data" 
 used is unchecked. Coverage is partial: it is not a complete monograph database.
 
 See `DATA_SOURCES.md` for sources and open questions. Code: [MIT licence](LICENSE).
-
-## Confidential
-
-- **Not medical advice.** Every page says "Research prediction, not medical advice", and results
-  say the label is checked, not the product's contents. There is no dosing or treatment advice.
-- **Do not scan personal information.** Labels with patient or personal details should not be
-  uploaded.
-- **What is stored.** Label photos (turned upright, location and camera data removed), the fields
-  read from them, corrections, verdicts and an audit log. Users can delete a scan with its photo,
-  delete their whole history, and revoke all their patient links.
-- **Third-party processing.** In Groq mode the label photo or text is sent to GroqCloud for
-  reading. In cached mode nothing leaves the server.
-- **Patient links.** The token sits after `#` in the link, so it never reaches server logs; only
-  its hash is stored. Links expire after 24 hours, 7 days or 30 days and can be revoked. A patient
-  sees only the product name, the plant and the verdict.
-- **Expert review is anonymous.** Experts see verdicts without the pharmacist's name or email.
-- **Accounts.** Passwords are hashed with Argon2, sessions last 8 hours in a secure cookie, login
-  and registration are rate limited, and role checks are enforced in the backend.
-- **Secrets.** Keys, passwords and tokens live only in `.env`, which is not committed.
-  `.env.example` keeps them empty.
 
 ## Repository layout
 
@@ -230,11 +250,31 @@ frontend/src/
 data/                reference rows (ema-draft.json, sample.json), saved label readings
 validation/results/  JSON copies of validation runs (run-validation --out)
 ```
+## Confidential
+
+- **Not medical advice.** Every page says "Research prediction, not medical advice", and results
+  say the label is checked, not the product's contents. There is no dosing or treatment advice.
+- **Do not scan personal information.** Labels with patient or personal details should not be
+  uploaded.
+- **What is stored.** Label photos (turned upright, location and camera data removed), the fields
+  read from them, corrections, verdicts and an audit log. Users can delete a scan with its photo,
+  delete their whole history, and revoke all their patient links.
+- **Third-party processing.** In Groq mode the label photo or text is sent to GroqCloud for
+  reading. In cached mode nothing leaves the server.
+- **Patient links.** The token sits after `#` in the link, so it never reaches server logs; only
+  its hash is stored. Links expire after 24 hours, 7 days or 30 days and can be revoked. A patient
+  sees only the product name, the plant and the verdict.
+- **Expert review is anonymous.** Experts see verdicts without the pharmacist's name or email.
+- **Accounts.** Passwords are hashed with Argon2, sessions last 8 hours (30 days with "Remember
+  me") in a secure cookie, self-registered pharmacists confirm their email, login and registration
+  are rate limited, and role checks are enforced in the backend.
+- **Secrets.** Keys, passwords and tokens live only in `.env`, which is not committed.
+  `.env.example` keeps them empty.
 
 ## Contributors
 
 Built by the LabelLens team for EthnoHack 2026, Track 4.
 
-- [Zana Ademi](https://github.com/Zanaad)
-- [Yllkë Berisha](https://github.com/yllkaberisha)
-- [Alketa Zekaj](https://github.com/AlketaZekaj)
+- [Zana Ademi](https://github.com/Zanaad) - Team Leader
+- [Yllkë Berisha](https://github.com/yllkaberisha) - Software Developer
+- [Alketa Zekaj](https://github.com/AlketaZekaj) - DevOps Engineer

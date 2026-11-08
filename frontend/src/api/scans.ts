@@ -93,6 +93,7 @@ export type ScanListItem = {
   verdict: VerdictCode | null;
   missing: number | null;
   review: ReviewOpinion["rating"] | null;
+  review_verdict: VerdictCode | null; // what that reviewer suggests instead, when they disagreed
 };
 
 export type Share = {

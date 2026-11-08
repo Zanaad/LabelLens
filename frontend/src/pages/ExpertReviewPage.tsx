@@ -10,7 +10,7 @@ import { VERDICT_OPTIONS, VerdictChip, say } from "../components/verdict";
 import { formatDate, t, type MessageKey } from "../i18n";
 import { NotFoundPage } from "./StatusPages";
 
-type Filter = "pending" | "asked" | "mine" | "all";
+type Filter = "pending" | "mine";
 const panel = "flex min-w-0 flex-col gap-3 rounded-control border border-border bg-surface"; // tables run edge to edge
 const card = `${panel} p-6`;
 const RATINGS: RatingValue[] = ["agree", "disagree", "unsure"];
@@ -19,14 +19,11 @@ export function ReviewQueuePage() {
   const queue = useReviewQueue();
   const [filter, setFilter] = useState<Filter>("pending");
   const all = queue.data ?? [];
-  const shown = all.filter((r) =>
-    filter === "pending" ? !r.my_rating : filter === "asked" ? r.requested : filter === "mine" ? !!r.my_rating : true,
-  );
+  // Every result is in exactly one list; asked-about ones sit first in "To review", tagged.
+  const shown = all.filter((r) => (filter === "pending" ? !r.my_rating : !!r.my_rating));
   const filters: [Filter, MessageKey][] = [
     ["pending", "queue.toReview"],
-    ["asked", "queue.asked"],
     ["mine", "queue.reviewed"],
-    ["all", "queue.all"],
   ];
   const th = "border-b border-border px-3 py-2.5 text-left font-semibold first:pl-6 last:pr-6";
   const td = "border-b border-border px-3 py-2.5 text-left first:pl-6 last:pr-6";
